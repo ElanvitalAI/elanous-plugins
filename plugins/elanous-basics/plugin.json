@@ -1,0 +1,16 @@
+{
+  "$schema": "https://antigravity.google/schemas/v1/plugin.json",
+  "name": "elanous-basics",
+  "version": "0.1.0",
+  "description": "Official elanous essentials for research, onboarding and everyday productivity.",
+  "extensions": {
+    "ai.elanous": {
+      "bundle": ["skills/omni-crawl", "skills/omni-digest", "skills/project-onboarding", "skills/grill-me", "skills/photo-intake-ocr"],
+      "capabilities": ["fs:workdir", "proc:bun", "net:*", "secret:xai", "secret:upstage"],
+      "connectors": [],
+      "pricing": { "model": "free" },
+      "trust": "official",
+      "category": "Productivity"
+    }
+  }
+}

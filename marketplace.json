@@ -1,0 +1,119 @@
+{
+  "name": "elanous",
+  "interface": {
+    "displayName": "Elanous"
+  },
+  "sequence": 1,
+  "generatedAt": "2026-09-28T21:30:27.985Z",
+  "plugins": [
+    {
+      "name": "elanous-basics",
+      "source": {
+        "source": "local",
+        "path": "./plugins/elanous-basics"
+      },
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "ON_USE"
+      },
+      "category": "Productivity",
+      "version": "0.1.0",
+      "description": "Official elanous essentials for research, onboarding and everyday productivity.",
+      "artifact": {
+        "sha256": "c1c94f18a442b996caae1ac7241ab2f08315f1b3107335cf8a3d019e36702039",
+        "bytes": 237784,
+        "key": "elanous-basics/0.1.0/c1c94f18a442b996caae1ac7241ab2f08315f1b3107335cf8a3d019e36702039.tgz"
+      },
+      "ai.elanous": {
+        "capabilities": [
+          "fs:workdir",
+          "proc:bun",
+          "net:*",
+          "secret:xai",
+          "secret:upstage"
+        ],
+        "connectors": [],
+        "pricing": {
+          "model": "free"
+        },
+        "trust": "official"
+      }
+    },
+    {
+      "name": "elanous-media",
+      "source": {
+        "source": "local",
+        "path": "./plugins/elanous-media"
+      },
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "ON_USE"
+      },
+      "category": "Productivity",
+      "version": "0.1.0",
+      "description": "Official elanous media skills: build videos and author word-timed motion B-roll.",
+      "artifact": {
+        "sha256": "3fd892331df8e4e972e31900f8a0508190399b349a444bc49549ec504c4c82d7",
+        "bytes": 167863,
+        "key": "elanous-media/0.1.0/3fd892331df8e4e972e31900f8a0508190399b349a444bc49549ec504c4c82d7.tgz"
+      },
+      "ai.elanous": {
+        "capabilities": [
+          "fs:workdir",
+          "proc:node",
+          "proc:python3",
+          "proc:ffmpeg"
+        ],
+        "connectors": [],
+        "pricing": {
+          "model": "free"
+        },
+        "trust": "official"
+      }
+    },
+    {
+      "name": "video-broll",
+      "source": {
+        "source": "local",
+        "path": "./plugins/video-broll"
+      },
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "ON_USE"
+      },
+      "category": "Productivity",
+      "version": "0.1.0",
+      "description": "Cut word-timed motion B-roll into a talking-head video: align, plan density, author clips with a coding agent, composite and QC.",
+      "artifact": {
+        "sha256": "431f8730343fba746b2476307650c25e0832aced6cc327448b136739dbfbbcf1",
+        "bytes": 158405,
+        "key": "video-broll/0.1.0/431f8730343fba746b2476307650c25e0832aced6cc327448b136739dbfbbcf1.tgz"
+      },
+      "ai.elanous": {
+        "graphs": [
+          "graphs/broll-line.yaml"
+        ],
+        "capabilities": [
+          "fs:workdir",
+          "proc:ffmpeg",
+          "proc:node",
+          "proc:python3",
+          "agent:codex",
+          "agent:claude"
+        ],
+        "connectors": [],
+        "requires": {
+          "tools": [
+            "ffmpeg",
+            "node",
+            "python3"
+          ]
+        },
+        "pricing": {
+          "model": "free"
+        },
+        "trust": "official"
+      }
+    }
+  ]
+}

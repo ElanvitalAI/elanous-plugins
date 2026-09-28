@@ -1,0 +1,17 @@
+[
+  {
+    "name": "elanous-basics",
+    "version": "0.1.0",
+    "sha256": "c1c94f18a442b996caae1ac7241ab2f08315f1b3107335cf8a3d019e36702039"
+  },
+  {
+    "name": "elanous-media",
+    "version": "0.1.0",
+    "sha256": "3fd892331df8e4e972e31900f8a0508190399b349a444bc49549ec504c4c82d7"
+  },
+  {
+    "name": "video-broll",
+    "version": "0.1.0",
+    "sha256": "431f8730343fba746b2476307650c25e0832aced6cc327448b136739dbfbbcf1"
+  }
+]
