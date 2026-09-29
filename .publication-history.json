@@ -18,5 +18,15 @@
     "name": "elanous-hwp",
     "version": "0.1.0",
     "sha256": "c0a9c08be3dfe51312a1a892dc2139b9511e1b99d275980d7e339de359e1275a"
+  },
+  {
+    "name": "elanous-basics",
+    "version": "0.1.1",
+    "sha256": "869dbfe98262a79976fdb6a3f9f369c403940012f2a3a61ab5dc06c982f59d6e"
+  },
+  {
+    "name": "job-coach",
+    "version": "0.1.0",
+    "sha256": "c92091a1c9f3f63181a3e244201f9895bf04f97fc38b7ab71a3cae1cff28598e"
   }
 ]

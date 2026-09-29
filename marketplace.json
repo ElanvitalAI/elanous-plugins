@@ -3,8 +3,8 @@
   "interface": {
     "displayName": "Elanous"
   },
-  "sequence": 2,
-  "generatedAt": "2026-09-29T01:42:42.790Z",
+  "sequence": 3,
+  "generatedAt": "2026-09-29T09:03:54.262Z",
   "plugins": [
     {
       "name": "elanous-basics",
@@ -17,12 +17,12 @@
         "authentication": "ON_USE"
       },
       "category": "Productivity",
-      "version": "0.1.0",
+      "version": "0.1.1",
       "description": "Official elanous essentials for research, onboarding and everyday productivity.",
       "artifact": {
-        "sha256": "c1c94f18a442b996caae1ac7241ab2f08315f1b3107335cf8a3d019e36702039",
-        "bytes": 237784,
-        "key": "elanous-basics/0.1.0/c1c94f18a442b996caae1ac7241ab2f08315f1b3107335cf8a3d019e36702039.tgz"
+        "sha256": "869dbfe98262a79976fdb6a3f9f369c403940012f2a3a61ab5dc06c982f59d6e",
+        "bytes": 237931,
+        "key": "elanous-basics/0.1.1/869dbfe98262a79976fdb6a3f9f369c403940012f2a3a61ab5dc06c982f59d6e.tgz"
       },
       "ai.elanous": {
         "capabilities": [
@@ -30,9 +30,47 @@
           "proc:bun",
           "net:*",
           "secret:xai",
-          "secret:upstage"
+          "secret:upstage",
+          "secret:firecrawl"
         ],
-        "connectors": [],
+        "connectors": [
+          {
+            "id": "xai",
+            "kind": "api-key",
+            "userConfig": [
+              {
+                "key": "XAI_API_KEY",
+                "label": "xAI API key",
+                "secret": true,
+                "env": "XAI_API_KEY"
+              }
+            ]
+          },
+          {
+            "id": "upstage",
+            "kind": "api-key",
+            "userConfig": [
+              {
+                "key": "UPSTAGE_API_KEY",
+                "label": "Upstage API key",
+                "secret": true,
+                "env": "UPSTAGE_API_KEY"
+              }
+            ]
+          },
+          {
+            "id": "firecrawl",
+            "kind": "api-key",
+            "userConfig": [
+              {
+                "key": "FIRECRAWL_API_KEY",
+                "label": "Firecrawl API key (optional)",
+                "secret": true,
+                "env": "FIRECRAWL_API_KEY"
+              }
+            ]
+          }
+        ],
         "pricing": {
           "model": "free"
         },
@@ -116,6 +154,55 @@
           "model": "free"
         },
         "trust": "official"
+      }
+    },
+    {
+      "name": "job-coach",
+      "source": {
+        "source": "local",
+        "path": "./plugins/job-coach"
+      },
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "ON_USE"
+      },
+      "category": "Productivity",
+      "version": "0.1.0",
+      "description": "Interview-to-NCS competency gap and cited course report.",
+      "artifact": {
+        "sha256": "c92091a1c9f3f63181a3e244201f9895bf04f97fc38b7ab71a3cae1cff28598e",
+        "bytes": 26113,
+        "key": "job-coach/0.1.0/c92091a1c9f3f63181a3e244201f9895bf04f97fc38b7ab71a3cae1cff28598e.tgz"
+      },
+      "ai.elanous": {
+        "graphs": [
+          "./graphs/report.yaml",
+          "./graphs/report-enterprise.yaml"
+        ],
+        "capabilities": [
+          "fs:workdir",
+          "net:apis.data.go.kr",
+          "proc:bun",
+          "proc:elanous",
+          "secret:ncs"
+        ],
+        "connectors": [
+          {
+            "id": "ncs",
+            "kind": "credentials",
+            "userConfig": [
+              {
+                "key": "serviceKey",
+                "label": "serviceKey",
+                "secret": true,
+                "env": "NCS_SERVICE_KEY"
+              }
+            ]
+          }
+        ],
+        "pricing": {
+          "model": "free"
+        }
       }
     },
     {
