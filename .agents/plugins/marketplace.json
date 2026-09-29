@@ -3,8 +3,8 @@
   "interface": {
     "displayName": "Elanous"
   },
-  "sequence": 1,
-  "generatedAt": "2026-09-28T21:30:27.985Z",
+  "sequence": 2,
+  "generatedAt": "2026-09-29T01:42:42.790Z",
   "plugins": [
     {
       "name": "elanous-basics",
@@ -33,6 +33,53 @@
           "secret:upstage"
         ],
         "connectors": [],
+        "pricing": {
+          "model": "free"
+        },
+        "trust": "official"
+      }
+    },
+    {
+      "name": "elanous-hwp",
+      "source": {
+        "source": "local",
+        "path": "./plugins/elanous-hwp"
+      },
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "ON_USE"
+      },
+      "category": "Productivity",
+      "version": "0.1.0",
+      "description": "Read HWP/HWPX, write template-based HWPX, and fill existing HWPX forms.",
+      "artifact": {
+        "sha256": "c0a9c08be3dfe51312a1a892dc2139b9511e1b99d275980d7e339de359e1275a",
+        "bytes": 14766,
+        "key": "elanous-hwp/0.1.0/c0a9c08be3dfe51312a1a892dc2139b9511e1b99d275980d7e339de359e1275a.tgz"
+      },
+      "ai.elanous": {
+        "skills": [
+          "skills/hwp-read",
+          "skills/hwp-write",
+          "skills/hwp-fill"
+        ],
+        "nodes": [
+          "./nodes/to-md.yaml",
+          "./nodes/from-md.yaml"
+        ],
+        "capabilities": [
+          "fs:workdir",
+          "proc:python3"
+        ],
+        "connectors": [],
+        "requires": {
+          "tools": [
+            "python3"
+          ],
+          "optionalPython": [
+            "pyhwp"
+          ]
+        },
         "pricing": {
           "model": "free"
         },

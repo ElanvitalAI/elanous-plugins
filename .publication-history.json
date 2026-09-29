@@ -13,5 +13,10 @@
     "name": "video-broll",
     "version": "0.1.0",
     "sha256": "431f8730343fba746b2476307650c25e0832aced6cc327448b136739dbfbbcf1"
+  },
+  {
+    "name": "elanous-hwp",
+    "version": "0.1.0",
+    "sha256": "c0a9c08be3dfe51312a1a892dc2139b9511e1b99d275980d7e339de359e1275a"
   }
 ]

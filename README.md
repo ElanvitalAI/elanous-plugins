@@ -7,6 +7,7 @@ The official, free Elanous plugin marketplace. Each plugin is a set of skills �
 | `elanous-basics` | Web search and crawling (`omni-crawl`), link digests (`omni-digest`), project onboarding (`project-onboarding`), a grilling interviewer (`grill-me`), photo OCR intake (`photo-intake-ocr`) |
 | `elanous-media` | Building videos (`video-builder`) and word-timed motion B-roll (`motion-broll`) |
 | `video-broll` | Cut word-timed motion B-roll into a talking-head video — the first plugin with a graph (`graphs/broll-line.yaml`) |
+| `elanous-hwp` | Korean HWP/HWPX documents: read to Markdown (`hwp-read`), write from templates (`hwp-write`), fill existing forms (`hwp-fill`) — plus `to-md`/`from-md` step kinds for graphs. Needs `python3`; legacy `.hwp` reading uses the optional, user-installed `hwp5txt` |
 
 ## Install in Codex
 
