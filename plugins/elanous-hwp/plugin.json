@@ -1,7 +1,7 @@
 {
   "$schema": "https://antigravity.google/schemas/v1/plugin.json",
   "name": "elanous-hwp",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Read HWP/HWPX, write template-based HWPX, and fill existing HWPX forms.",
   "extensions": {
     "ai.elanous": {

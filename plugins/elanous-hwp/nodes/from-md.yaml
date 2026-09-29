@@ -6,7 +6,7 @@ inputs:
   type: object
   required: [markdown, template]
   properties:
-    markdown: { type: string, title: Markdown 본문 }
+    markdown: { type: string, title: Markdown 본문, x-multiline: true }
     template: { type: string, title: 양식, enum: [report, official-letter] }
 outputs:
   type: object

@@ -3,8 +3,8 @@
   "interface": {
     "displayName": "Elanous"
   },
-  "sequence": 3,
-  "generatedAt": "2026-09-29T09:03:54.262Z",
+  "sequence": 4,
+  "generatedAt": "2026-09-29T21:00:16.189Z",
   "plugins": [
     {
       "name": "elanous-basics",
@@ -88,12 +88,12 @@
         "authentication": "ON_USE"
       },
       "category": "Productivity",
-      "version": "0.1.0",
+      "version": "0.1.1",
       "description": "Read HWP/HWPX, write template-based HWPX, and fill existing HWPX forms.",
       "artifact": {
-        "sha256": "c0a9c08be3dfe51312a1a892dc2139b9511e1b99d275980d7e339de359e1275a",
-        "bytes": 14766,
-        "key": "elanous-hwp/0.1.0/c0a9c08be3dfe51312a1a892dc2139b9511e1b99d275980d7e339de359e1275a.tgz"
+        "sha256": "06ea1e9d27412c1f7082dcbe8a8c99e758601271dbd531cd52ac8f952b96e122",
+        "bytes": 14807,
+        "key": "elanous-hwp/0.1.1/06ea1e9d27412c1f7082dcbe8a8c99e758601271dbd531cd52ac8f952b96e122.tgz"
       },
       "ai.elanous": {
         "skills": [

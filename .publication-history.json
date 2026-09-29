@@ -28,5 +28,10 @@
     "name": "job-coach",
     "version": "0.1.0",
     "sha256": "c92091a1c9f3f63181a3e244201f9895bf04f97fc38b7ab71a3cae1cff28598e"
+  },
+  {
+    "name": "elanous-hwp",
+    "version": "0.1.1",
+    "sha256": "06ea1e9d27412c1f7082dcbe8a8c99e758601271dbd531cd52ac8f952b96e122"
   }
 ]
