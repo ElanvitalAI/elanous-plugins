@@ -32,7 +32,9 @@ function executable(path: string, body: string) {
 function fakeElanous(path: string, drafts: Data[], research = '', counter?: string) {
   executable(path, `#!/usr/bin/env node
 const fs=require('node:fs');
-const [, , , cmd, , payload]=process.argv;
+// An installed plugin runs outside any git tree, where the real CLI refuses \`--test\` (no isolation root).
+if (process.argv.includes('--test')) { process.stderr.write('[--test] 격리 루트를 정할 수 없습니다\\n'); process.exit(1); }
+const [, , cmd, , payload]=process.argv;
 fs.appendFileSync(${JSON.stringify(path + '.calls')}, process.argv.slice(2).join(' ')+'\\n');
 if (cmd==='research') { process.stdout.write(JSON.stringify({output:${JSON.stringify(research)}})+'\\n'); process.exit(0); }
 if (cmd!=='ask') process.exit(17);

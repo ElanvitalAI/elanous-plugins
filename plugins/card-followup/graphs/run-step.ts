@@ -86,7 +86,7 @@ try {
     const company = text(card.company), name = text(card.name);
     if (!company && !name) throw new Error('조사할 이름·회사 없음');
     const queries = [company || name, [name, company].filter(Boolean).join(' ')];
-    const hits = (await Promise.all(queries.map(query => cli(elanous, ['--test', 'research', '--json', '--limit', '5', query])))).flatMap(sources);
+    const hits = (await Promise.all(queries.map(query => cli(elanous, ['research', '--json', '--limit', '5', query])))).flatMap(sources);
     const unique = [...new Map(hits.map(hit => [hit.url, hit])).values()];
     // Only the exact result text may be reported as a company fact, never a model-invented summary.
     // Put results that name the card's company (or its site) first; if none does, say nothing as a summary —
@@ -128,7 +128,7 @@ try {
     const strip = (value: string) => value.replace(marker, '').trim();
     const sentencesOf = (value: string) => value.split(/(?<=[.!?。！？])\s+|\n+/).map(s => s.trim()).filter(Boolean);
     const ask = async (payload: Data): Promise<Data> => {
-      const response = JSON.parse(await cli(elanous, ['--test', 'ask', '--json', JSON.stringify(payload)])) as Data;
+      const response = JSON.parse(await cli(elanous, ['ask', '--json', JSON.stringify(payload)])) as Data;
       return firstObject(typeof response.reply === 'string' ? response.reply : JSON.stringify(response));
     };
     const instruction = 'JSON 객체만 출력: subject, body (120~200자 · [S#] 표시는 글자 수에서 뺀다), linkedin (300자 이하), question. context가 있으면 body에 그 문구를 그대로 한 번 포함. '

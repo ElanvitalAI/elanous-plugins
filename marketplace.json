@@ -3,8 +3,8 @@
   "interface": {
     "displayName": "Elanous"
   },
-  "sequence": 6,
-  "generatedAt": "2026-09-30T20:31:45.212Z",
+  "sequence": 7,
+  "generatedAt": "2026-09-30T20:50:25.529Z",
   "plugins": [
     {
       "name": "card-followup",
@@ -17,12 +17,12 @@
         "authentication": "ON_USE"
       },
       "category": "Marketing",
-      "version": "0.1.1",
+      "version": "0.1.2",
       "description": "Business card photo to researched follow-up and LinkedIn drafts. Drafts are never sent.",
       "artifact": {
-        "sha256": "14f3a429ecbff678fd9c3a8c2dbb2e2a5bfb9cee3471139c142347c971a8db34",
-        "bytes": 12315,
-        "key": "card-followup/0.1.1/14f3a429ecbff678fd9c3a8c2dbb2e2a5bfb9cee3471139c142347c971a8db34.tgz"
+        "sha256": "9f17f86ac455c3a3cb588ed39535207e3bf1161df5ae6ccbea177a7078d9eb34",
+        "bytes": 12449,
+        "key": "card-followup/0.1.2/9f17f86ac455c3a3cb588ed39535207e3bf1161df5ae6ccbea177a7078d9eb34.tgz"
       },
       "ai.elanous": {
         "graphs": [
@@ -236,12 +236,12 @@
         "authentication": "ON_USE"
       },
       "category": "Productivity",
-      "version": "0.1.0",
+      "version": "0.1.1",
       "description": "Interview-to-NCS competency gap and cited course report.",
       "artifact": {
-        "sha256": "c92091a1c9f3f63181a3e244201f9895bf04f97fc38b7ab71a3cae1cff28598e",
-        "bytes": 26113,
-        "key": "job-coach/0.1.0/c92091a1c9f3f63181a3e244201f9895bf04f97fc38b7ab71a3cae1cff28598e.tgz"
+        "sha256": "608df14a53eb164f852edf3cbddc24c27e9f77138ca1c7157b93d06c0c3d2acc",
+        "bytes": 27526,
+        "key": "job-coach/0.1.1/608df14a53eb164f852edf3cbddc24c27e9f77138ca1c7157b93d06c0c3d2acc.tgz"
       },
       "ai.elanous": {
         "graphs": [
