@@ -39,6 +39,8 @@ fs.appendFileSync(${JSON.stringify(path + '.calls')}, process.argv.slice(2).join
 if (cmd==='research') { process.stdout.write(JSON.stringify({output:${JSON.stringify(research)}})+'\\n'); process.exit(0); }
 if (cmd!=='ask') process.exit(17);
 const p=JSON.parse(payload);
+if (p.task==='strategy') { process.stdout.write(JSON.stringify({reply:JSON.stringify({fit:{score:85,label:'high',reasons:[{text:'제안 적합',basis:'offer'},{text:'회사 조사',basis:'S1'},{text:'직함',basis:'card'}]},approach:{who:p.card.name,problem:'후속 대화',proposal:'가상 제품 데모',channel:'email',timing:'다음 주'},nextAction:{what:'후속 연락',due:'다음 주'},approachBasis:{who:['card'],problem:['context'],proposal:[p.offer?'offer':'assumption'],channel:['assumption'],timing:['assumption']},nextActionBasis:{what:['assumption'],due:['assumption']}})})+'\\n'); process.exit(0); }
+if (p.task==='strategy-verify') { process.stdout.write(JSON.stringify({reply:JSON.stringify({unsupportedReasons:p.claims.filter(s=>s.text.includes('세계')).map(s=>s.i),unsupportedApproach:p.approach.filter(s=>s.text.includes('세계')).map(s=>s.field),unsupportedAction:p.nextAction.filter(s=>s.text.includes('세계')).map(s=>s.field)})})+'\\n'); process.exit(0); }
 if (p.task==='verify') { process.stdout.write(JSON.stringify({reply:JSON.stringify({unsupported:p.sentences.filter(s=>s.text.includes('세계')).map(s=>s.i)})})+'\\n'); process.exit(0); }
 const counter=${JSON.stringify(counter ?? path + '.count')};
 fs.appendFileSync(counter,'x');
@@ -82,7 +84,7 @@ test('counterexamples reject bad input and preserve only sourced facts', () => {
   expect(noJson.output.reason).toContain('JSON 없는 설명 문장입니다.');
   const research = step('research', {}, { 'read-card': card.output }, env);
   expect(research.output).toMatchObject({ summary: null, news: [], sources: [] });
-  const draft = step('draft', { context: contextLine }, { 'read-card': card.output, research: research.output }, { ...env, CARD_FOLLOWUP_ELANOUS_BIN: longAsk });
+  const draft = step('draft', { context: contextLine }, { 'read-card': card.output, research: research.output, strategy: { approach: { problem: '대화', proposal: '후속', channel: 'LinkedIn' } } }, { ...env, CARD_FOLLOWUP_ELANOUS_BIN: longAsk });
   expect(draft.output.destination).toEqual(['LinkedIn']);
   expect(draft.output.linkedin).toBe('짧은 초대');
   expect(readFileSync(join(temp, 'ask.count'), 'utf8')).toBe('xx');
@@ -150,16 +152,26 @@ test('installed graph completes and writes all three drafts with sources', async
     } },
   });
   expect(state.status).toBe('done');
-  const recipes = parseYaml(readFileSync(join(installed, 'graphs/recipes.yaml'), 'utf8')) as Record<string, { command: string }>;
-  expect(commands).toEqual(['read-card', 'research', 'draft', 'report'].map(id => recipes[id]!.command));
+  const recipes = parseYaml(readFileSync(join(installed, 'graphs/recipes.yaml'), 'utf8')) as Record<string, { command: string; timeout_ms: number }>;
+  expect(commands).toEqual(['read-card', 'research', 'strategy', 'draft', 'report'].map(id => recipes[id]!.command));
+  expect(recipes.strategy!.timeout_ms).toBe(120000);
   const report = readFileSync(join(state.statePath.slice(0, -5), 'followup.md'), 'utf8');
-  for (const heading of ['팔로업 메일', 'LinkedIn 초대 문구', '대화 이어 갈 질문']) expect(report).toContain(`## ${heading}`);
+  const headings = ['① 사람·회사 분석', '② CRM 한 줄', '③ 타겟 판정', '④ 접근 전략', '⑤ 메일·LinkedIn 초안'];
+  expect([...report.matchAll(/^## (.+)$/gm)].slice(0, 5).map(match => match[1])).toEqual(headings);
+  for (const heading of ['팔로업 메일', 'LinkedIn 초대 문구', '대화 이어 갈 질문']) expect(report).toContain(`### ${heading}`);
   expect(report).toContain('https://example.test/company');
   expect(report).toContain('가상 행사에서 가상 제품 데모를 짧게 이야기했습니다.');
   const output = JSON.parse(readFileSync(join(state.statePath.slice(0, -5), 'followup.json'), 'utf8')) as Data;
   const finalDraft = output.draft as Data;
   const finalResearch = output.research as Data;
   expect(output.sent).toBe(false);
+  expect(output.fit).toMatchObject({ score: null, label: 'unknown' });
+  expect(output.approach).toMatchObject({ who: '가상 인물', channel: 'email' });
+  expect(output.nextAction).toMatchObject({ what: '후속 연락' });
+  expect(output.crm).toBe(join(state.statePath.slice(0, -5), 'crm.csv'));
+  expect(readFileSync(output.crm as string, 'utf8')).toContain('person@example.test');
+  expect(report).toContain('offer 입력이 없어 맞음을 판정하지 않았다');
+  expect(readFileSync(join(bin, 'elanous.calls'), 'utf8')).not.toContain('--test');
   expect((finalDraft.body as string).length).toBeGreaterThanOrEqual(120);
   expect((finalDraft.body as string).length).toBeLessThanOrEqual(200);
   expect(finalDraft.body).toContain(contextLine);
@@ -188,6 +200,34 @@ test('installed graph completes and writes all three drafts with sources', async
   });
   expect(rejected.status).not.toBe('done');
   rmSync(temp, { recursive: true, force: true });
+});
+
+test('strategy uses offer and a custom local CRM path; drafts receive the chosen approach', () => {
+  const temp = mkdtempSync(join(tmpdir(), 'card-offer-'));
+  try {
+    const fake = join(temp, 'elanous');
+    const crm = join(temp, 'contacts.csv');
+    const contextLine = '가상 행사에서 만났습니다.';
+    const body = `${contextLine} ${'후속 대화를 이어가고 가상 제품 데모를 함께 검토하고 싶습니다. '.repeat(4)}`;
+    fakeElanous(fake, [{ subject: '데모 제안', body, linkedin: '데모를 논의하고 싶습니다.', question: '언제 이야기를 나눌까요?' }]);
+    const card = { card: { name: '가상 인물', company: '가상 회사', email: 'person@example.test', language: 'ko' } };
+    const research = { sources: [{ title: '가상 회사 소개', url: 'https://example.test/company', snippet: '소개' }] };
+    const env = { CARD_FOLLOWUP_ELANOUS_BIN: fake };
+    const strategy = step('strategy', { context: contextLine, offer: '가상 제품은 고객을 위한 서비스', crm }, { 'read-card': card, research }, env);
+    expect(strategy.output.outcome).toBe('ok');
+    expect(strategy.output.fit).toMatchObject({ score: 85, label: 'high', reasons: [{ basis: 'offer' }, { basis: 'S1' }, { basis: 'card' }] });
+    expect(strategy.output.crm).toBe(crm);
+    expect(readFileSync(crm, 'utf8')).toContain('person@example.test');
+    const draft = step('draft', { context: contextLine }, { 'read-card': card, research, strategy: strategy.output }, env);
+    expect(draft.output.outcome).toBe('ok');
+    const calls = readFileSync(`${fake}.calls`, 'utf8');
+    expect(calls).toContain('"problem":"후속 대화"');
+    expect(calls).toContain('"proposal":"가상 제품 데모"');
+    expect(calls).toContain('"channel":"email"');
+    expect(calls).not.toContain('--test');
+    rmSync(strategy.temp, { recursive: true, force: true });
+    rmSync(draft.temp, { recursive: true, force: true });
+  } finally { rmSync(temp, { recursive: true, force: true }); }
 });
 
 test('a card language read as «English» drafts in en instead of failing', () => {

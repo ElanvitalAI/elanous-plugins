@@ -1,6 +1,7 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { dirname, extname, isAbsolute, join } from 'node:path';
+import { buildStrategy, crmRow, upsertCrm } from './sales-strategy.js';
 
 type Data = Record<string, unknown>;
 const object = (v: unknown): Data => v && typeof v === 'object' && !Array.isArray(v) ? v as Data : {};
@@ -112,10 +113,26 @@ try {
     // same name (10-01 live run: strangers' LinkedIn, Instagram and IMDb pages listed as this contact's sources).
     const relevant = unique.filter(matches);
     result({ summary: relevant.length ? relevant[0]!.title : null, news: relevant.slice(1, 3).map(hit => hit.title), sources: relevant, dropped: unique.length - relevant.length });
+  } else if (step === 'strategy') {
+    const read = object(outputs['read-card']);
+    const card = object(read.card ?? read);
+    const research = object(outputs.research);
+    const ask = async (payload: Data): Promise<Data> => {
+      const response = JSON.parse(await cli(elanous, ['ask', '--json', JSON.stringify(payload)])) as Data;
+      return firstObject(typeof response.reply === 'string' ? response.reply : JSON.stringify(response));
+    };
+    const strategy = await buildStrategy({ card, research, context: text(input.context), offer: text(input.offer), ask });
+    const fallback = dirname(contextFile).endsWith('.json.contexts') ? dirname(contextFile).slice(0, -'.json.contexts'.length) : dirname(contextFile);
+    const outDir = input.outDir === undefined ? fallback : absolute(text(input.outDir), 'outDir');
+    const crm = input.crm === undefined ? join(outDir, 'crm.csv') : absolute(text(input.crm), 'crm');
+    const row = crmRow(card, strategy.fit, strategy.approach, strategy.nextAction, text(input.context), new Date());
+    upsertCrm(crm, row);
+    result({ ...strategy, crm, crmRow: row });
   } else if (step === 'draft') {
     const read = object(outputs['read-card']);
     const card = object(read.card ?? read);
     const research = object(outputs.research);
+    const approach = object(object(outputs.strategy).approach);
     const evidence = (Array.isArray(research.sources) ? research.sources.map(object) : [])
       .filter(source => /^https?:\/\//.test(text(source.url)));
     // A card reader may answer «English»/«Korean»/«한국어» — fold them to the two codes the draft step writes in.
@@ -133,12 +150,13 @@ try {
     };
     const instruction = 'JSON 객체만 출력: subject, body (120~200자 · [S#] 표시는 글자 수에서 뺀다), linkedin (300자 이하), question. context가 있으면 body에 그 문구를 그대로 한 번 포함. '
       + '명함 필드(이름·직함·회사)와 context 는 출처 없이 써도 된다. 그 밖의 회사·사람·시장 사실은 evidence 에 있는 것만 쓰고, 그 문장 끝에 근거 번호를 [S1] 처럼 붙인다. '
+      + 'approach.problem·proposal·channel 에 맞춰 메일과 LinkedIn 초안을 작성하되, 전략 문구도 회사·사람·시장 사실이면 위의 문장별 근거 규칙을 반드시 따를 것. '
       + 'evidence 에 없는 사실(매출·순위·규모·수상·최근 소식 등)은 쓰지 말 것. email이 없으면 메일 주소를 만들지 말 것. 어떤 메시지도 보내지 말 것.';
     let feedback = '';
     let accepted: { warnings: string[]; draft: Data; facts: { text: string; url: string }[] } | undefined;
     let lastProblem = '';
     for (let attempt = 0; attempt < 3 && !accepted; attempt++) {
-      const draft = await ask({ task: 'draft', instruction: instruction + feedback, card, context: contextLine, sender: text(input.sender), language, evidence: numbered });
+      const draft = await ask({ task: 'draft', instruction: instruction + feedback, card, context: contextLine, sender: text(input.sender), language, evidence: numbered, approach: { problem: text(approach.problem), proposal: text(approach.proposal), channel: text(approach.channel) } });
       const parts = { subject: text(draft.subject), body: text(draft.body), linkedin: text(draft.linkedin), question: text(draft.question) };
       if (!parts.subject || !parts.body || !parts.linkedin || !parts.question) { lastProblem = '초안 필수 필드 없음'; feedback = ' 이전 응답에 필드가 빠졌다.'; continue; }
       const body = strip(parts.body), linkedin = strip(parts.linkedin);
@@ -172,24 +190,35 @@ try {
   } else if (step === 'report') {
     const read = object(outputs['read-card']);
     const card = object(read.card ?? read);
-    const research = object(outputs.research), draft = object(outputs.draft);
+    const research = object(outputs.research), draft = object(outputs.draft), strategy = object(outputs.strategy);
+    const fit = object(strategy.fit), approach = object(strategy.approach), nextAction = object(strategy.nextAction);
     if (!text(draft.subject) || !text(draft.linkedin) || !text(draft.question)) throw new Error('초안 없음');
     const fallback = dirname(contextFile).endsWith('.json.contexts') ? dirname(contextFile).slice(0, -'.json.contexts'.length) : dirname(contextFile);
     const outDir = input.outDir === undefined ? fallback : absolute(text(input.outDir), 'outDir');
     const hits = Array.isArray(research.sources) ? research.sources.map(object) : [];
     const warnings = Array.isArray(draft.warnings) ? draft.warnings.map(text).filter(Boolean) : [];
-    const md = ['# 네트워킹 팔로업 초안', '', '## 명함', '| 필드 | 값 |', '| --- | --- |',
-      ...fields.map(field => `| ${field} | ${line(card[field]) || 'null'} |`), '',
-      '## 조사 요약', hits.length ? line(research.summary) : '조사 결과 없음',
-      ...((Array.isArray(research.news) ? research.news : []).map(v => `- ${line(v)}`)),
+    const crm = text(strategy.crm);
+    if (!crm || !Array.isArray(fit.reasons)) throw new Error('전략 없음');
+    const row = object(strategy.crmRow);
+    const md = ['# 명함 영업 계획', '', '## ① 사람·회사 분석',
+      `${line(card.name) || '이름 없음'} · ${line(card.title) || '직함 없음'} · ${line(card.company) || '회사 없음'} · ${line(card.email) || '이메일 없음'}`,
+      `조사 요약: ${hits.length ? line(research.summary) : '조사 결과 없음'}`, '',
+      '## ② CRM 한 줄', `경로: ${crm}`, Object.entries(row).map(([key, value]) => `${key}: ${line(value)}`).join(' · '), '',
+      '## ③ 타겟 판정', `점수: ${fit.score === null ? 'null' : String(fit.score)} · 라벨: ${line(fit.label)}`,
+      ...(fit.reasons as unknown[]).map(v => `- ${line(object(v).text)} (${line(object(v).basis)})`), '',
+      '## ④ 접근 전략', `- 누구에게: ${line(approach.who)}`, `- 어떤 문제: ${line(approach.problem)}`,
+      `- 어떤 제안: ${line(approach.proposal)}`, `- 어느 채널: ${line(approach.channel)}`, `- 언제: ${line(approach.timing)}`,
+      `- 다음 행동: ${line(nextAction.what)} · 기한: ${line(nextAction.due)}`, '',
+      '## ⑤ 메일·LinkedIn 초안', '### 팔로업 메일', `제목: ${line(draft.subject)}`, '', text(draft.body), '',
+      '### LinkedIn 초대 문구', text(draft.linkedin), '', '### 대화 이어 갈 질문', text(draft.question), '',
+      '## 명함 전체 필드', '| 필드 | 값 |', '| --- | --- |', ...fields.map(field => `| ${field} | ${line(card[field]) || 'null'} |`), '',
+      '## 추가 조사 결과', ...((Array.isArray(research.news) ? research.news : []).map(v => `- ${line(v)}`)), '',
       '## 출처', ...(hits.length ? hits.map(hit => `- ${line(hit.title)} — ${text(hit.url)}`) : ['- 조사 결과 없음']), '',
       '## 보낼 곳', ...((Array.isArray(draft.destination) ? draft.destination : []).map(v => `- ${line(v)}`)), '',
-      '## 팔로업 메일', `제목: ${line(draft.subject)}`, '', text(draft.body), '',
-      '## LinkedIn 초대 문구', text(draft.linkedin), '', '## 대화 이어 갈 질문', text(draft.question), '',
       '## 초안의 사실과 출처', ...((Array.isArray(draft.companyFacts) && draft.companyFacts.length ? draft.companyFacts : ['출처를 인용한 문장 없음']).map(v => typeof v === 'string' ? `- ${v}` : `- ${line(object(v).text)} — ${text(object(v).url)}`)),
       ...(warnings.length ? ['## 경고', ...warnings.map(v => `- ${v}`)] : []), '', '※ 초안만 생성했습니다. 전송은 사람이 결정합니다.', ''].join('\n');
     mkdirSync(outDir, { recursive: true, mode: 0o700 });
-    const report = { card, research, draft, warnings, sent: false };
+    const report = { card, research, fit, approach, nextAction, crm, draft, warnings, sent: false };
     const markdown = join(outDir, 'followup.md'), json = join(outDir, 'followup.json');
     writeFileSync(markdown, md, { mode: 0o600 });
     writeFileSync(json, JSON.stringify(report, null, 2) + '\n', { mode: 0o600 });

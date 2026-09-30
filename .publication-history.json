@@ -58,5 +58,10 @@
     "name": "job-coach",
     "version": "0.1.1",
     "sha256": "608df14a53eb164f852edf3cbddc24c27e9f77138ca1c7157b93d06c0c3d2acc"
+  },
+  {
+    "name": "card-followup",
+    "version": "0.2.1",
+    "sha256": "808e4de1f7dc5c964c22f13918d5988ff7c6e4f4c1ec2618a6005ee115632743"
   }
 ]

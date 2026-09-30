@@ -4,6 +4,9 @@ read-card:
 research:
   command: 'bun "$ELANOUS_GRAPH_DIR/run-step.ts" research'
   timeout_ms: 120000
+strategy:
+  command: 'bun "$ELANOUS_GRAPH_DIR/run-step.ts" strategy'
+  timeout_ms: 120000
 draft:
   command: 'bun "$ELANOUS_GRAPH_DIR/run-step.ts" draft'
   timeout_ms: 120000
