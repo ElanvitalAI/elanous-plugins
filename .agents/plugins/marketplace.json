@@ -3,8 +3,8 @@
   "interface": {
     "displayName": "Elanous"
   },
-  "sequence": 8,
-  "generatedAt": "2026-09-30T22:13:54.129Z",
+  "sequence": 9,
+  "generatedAt": "2026-09-30T22:23:05.329Z",
   "plugins": [
     {
       "name": "card-followup",
@@ -17,12 +17,12 @@
         "authentication": "ON_USE"
       },
       "category": "Marketing",
-      "version": "0.2.1",
+      "version": "0.2.2",
       "description": "Business card photo to researched follow-up and LinkedIn drafts. Drafts are never sent.",
       "artifact": {
-        "sha256": "808e4de1f7dc5c964c22f13918d5988ff7c6e4f4c1ec2618a6005ee115632743",
-        "bytes": 21740,
-        "key": "card-followup/0.2.1/808e4de1f7dc5c964c22f13918d5988ff7c6e4f4c1ec2618a6005ee115632743.tgz"
+        "sha256": "ba7523ce15726f0d6af8bcb56ab93231925d4bd7e5a145099b00f04123b658f9",
+        "bytes": 21818,
+        "key": "card-followup/0.2.2/ba7523ce15726f0d6af8bcb56ab93231925d4bd7e5a145099b00f04123b658f9.tgz"
       },
       "ai.elanous": {
         "graphs": [

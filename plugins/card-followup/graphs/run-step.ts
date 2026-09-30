@@ -1,6 +1,6 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { homedir } from 'node:os';
-import { dirname, extname, isAbsolute, join } from 'node:path';
+import { dirname, extname, isAbsolute, join, basename } from 'node:path';
 import { buildStrategy, crmRow, upsertCrm } from './sales-strategy.js';
 
 type Data = Record<string, unknown>;
@@ -203,7 +203,7 @@ try {
     const md = ['# 명함 영업 계획', '', '## ① 사람·회사 분석',
       `${line(card.name) || '이름 없음'} · ${line(card.title) || '직함 없음'} · ${line(card.company) || '회사 없음'} · ${line(card.email) || '이메일 없음'}`,
       `조사 요약: ${hits.length ? line(research.summary) : '조사 결과 없음'}`, '',
-      '## ② CRM 한 줄', `경로: ${crm}`, Object.entries(row).map(([key, value]) => `${key}: ${line(value)}`).join(' · '), '',
+      '## ② CRM 한 줄', `파일: ${basename(crm)}`, Object.entries(row).map(([key, value]) => `${key}: ${line(value)}`).join(' · '), '',
       '## ③ 타겟 판정', `점수: ${fit.score === null ? 'null' : String(fit.score)} · 라벨: ${line(fit.label)}`,
       ...(fit.reasons as unknown[]).map(v => `- ${line(object(v).text)} (${line(object(v).basis)})`), '',
       '## ④ 접근 전략', `- 누구에게: ${line(approach.who)}`, `- 어떤 문제: ${line(approach.problem)}`,

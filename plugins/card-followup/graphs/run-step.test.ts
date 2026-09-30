@@ -156,6 +156,9 @@ test('installed graph completes and writes all three drafts with sources', async
   expect(commands).toEqual(['read-card', 'research', 'strategy', 'draft', 'report'].map(id => recipes[id]!.command));
   expect(recipes.strategy!.timeout_ms).toBe(120000);
   const report = readFileSync(join(state.statePath.slice(0, -5), 'followup.md'), 'utf8');
+  // The report is shown on screens: the CRM line names the file, never the home path.
+  expect(report).toContain('파일: crm.csv');
+  expect(report).not.toContain(homedir());
   const headings = ['① 사람·회사 분석', '② CRM 한 줄', '③ 타겟 판정', '④ 접근 전략', '⑤ 메일·LinkedIn 초안'];
   expect([...report.matchAll(/^## (.+)$/gm)].slice(0, 5).map(match => match[1])).toEqual(headings);
   for (const heading of ['팔로업 메일', 'LinkedIn 초대 문구', '대화 이어 갈 질문']) expect(report).toContain(`### ${heading}`);
