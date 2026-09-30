@@ -38,5 +38,15 @@
     "name": "geo-check",
     "version": "0.1.0",
     "sha256": "51e82a491c62bd4187f266645684129c560622889efd0c4e6bd1ad2b6f25b074"
+  },
+  {
+    "name": "card-followup",
+    "version": "0.1.1",
+    "sha256": "14f3a429ecbff678fd9c3a8c2dbb2e2a5bfb9cee3471139c142347c971a8db34"
+  },
+  {
+    "name": "geo-check",
+    "version": "0.1.2",
+    "sha256": "0eeaa8fcc41c7708ef125a7391c7fca8469dc7cc76cc42665fbaaa47a873cf47"
   }
 ]

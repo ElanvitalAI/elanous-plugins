@@ -3,9 +3,44 @@
   "interface": {
     "displayName": "Elanous"
   },
-  "sequence": 5,
-  "generatedAt": "2026-09-30T14:23:54.859Z",
+  "sequence": 6,
+  "generatedAt": "2026-09-30T20:31:45.212Z",
   "plugins": [
+    {
+      "name": "card-followup",
+      "source": {
+        "source": "local",
+        "path": "./plugins/card-followup"
+      },
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "ON_USE"
+      },
+      "category": "Marketing",
+      "version": "0.1.1",
+      "description": "Business card photo to researched follow-up and LinkedIn drafts. Drafts are never sent.",
+      "artifact": {
+        "sha256": "14f3a429ecbff678fd9c3a8c2dbb2e2a5bfb9cee3471139c142347c971a8db34",
+        "bytes": 12315,
+        "key": "card-followup/0.1.1/14f3a429ecbff678fd9c3a8c2dbb2e2a5bfb9cee3471139c142347c971a8db34.tgz"
+      },
+      "ai.elanous": {
+        "graphs": [
+          "./graphs/card-followup.yaml"
+        ],
+        "capabilities": [
+          "fs:workdir",
+          "proc:bun",
+          "proc:elanous",
+          "proc:codex"
+        ],
+        "connectors": [],
+        "pricing": {
+          "model": "free"
+        },
+        "trust": "official"
+      }
+    },
     {
       "name": "elanous-basics",
       "source": {
@@ -167,12 +202,12 @@
         "authentication": "ON_USE"
       },
       "category": "Marketing",
-      "version": "0.1.0",
+      "version": "0.1.2",
       "description": "Measure brand mentions and citations in AI answers and web results.",
       "artifact": {
-        "sha256": "51e82a491c62bd4187f266645684129c560622889efd0c4e6bd1ad2b6f25b074",
-        "bytes": 8706,
-        "key": "geo-check/0.1.0/51e82a491c62bd4187f266645684129c560622889efd0c4e6bd1ad2b6f25b074.tgz"
+        "sha256": "0eeaa8fcc41c7708ef125a7391c7fca8469dc7cc76cc42665fbaaa47a873cf47",
+        "bytes": 10235,
+        "key": "geo-check/0.1.2/0eeaa8fcc41c7708ef125a7391c7fca8469dc7cc76cc42665fbaaa47a873cf47.tgz"
       },
       "ai.elanous": {
         "graphs": [
