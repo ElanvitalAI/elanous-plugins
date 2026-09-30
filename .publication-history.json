@@ -33,5 +33,10 @@
     "name": "elanous-hwp",
     "version": "0.1.1",
     "sha256": "06ea1e9d27412c1f7082dcbe8a8c99e758601271dbd531cd52ac8f952b96e122"
+  },
+  {
+    "name": "geo-check",
+    "version": "0.1.0",
+    "sha256": "51e82a491c62bd4187f266645684129c560622889efd0c4e6bd1ad2b6f25b074"
   }
 ]

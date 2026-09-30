@@ -3,8 +3,8 @@
   "interface": {
     "displayName": "Elanous"
   },
-  "sequence": 4,
-  "generatedAt": "2026-09-29T21:00:16.189Z",
+  "sequence": 5,
+  "generatedAt": "2026-09-30T14:23:54.859Z",
   "plugins": [
     {
       "name": "elanous-basics",
@@ -148,6 +148,40 @@
           "proc:node",
           "proc:python3",
           "proc:ffmpeg"
+        ],
+        "connectors": [],
+        "pricing": {
+          "model": "free"
+        },
+        "trust": "official"
+      }
+    },
+    {
+      "name": "geo-check",
+      "source": {
+        "source": "local",
+        "path": "./plugins/geo-check"
+      },
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "ON_USE"
+      },
+      "category": "Marketing",
+      "version": "0.1.0",
+      "description": "Measure brand mentions and citations in AI answers and web results.",
+      "artifact": {
+        "sha256": "51e82a491c62bd4187f266645684129c560622889efd0c4e6bd1ad2b6f25b074",
+        "bytes": 8706,
+        "key": "geo-check/0.1.0/51e82a491c62bd4187f266645684129c560622889efd0c4e6bd1ad2b6f25b074.tgz"
+      },
+      "ai.elanous": {
+        "graphs": [
+          "./graphs/geo-check.yaml"
+        ],
+        "capabilities": [
+          "fs:workdir",
+          "proc:bun",
+          "proc:elanous"
         ],
         "connectors": [],
         "pricing": {
