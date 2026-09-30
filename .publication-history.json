@@ -68,5 +68,10 @@
     "name": "card-followup",
     "version": "0.2.2",
     "sha256": "ba7523ce15726f0d6af8bcb56ab93231925d4bd7e5a145099b00f04123b658f9"
+  },
+  {
+    "name": "card-followup",
+    "version": "0.2.3",
+    "sha256": "f19e8a9883fbc1248cee4870e5262907fd9a85ab39e513fed0058ef1a719e33e"
   }
 ]

@@ -33,8 +33,7 @@ test('invalid S9 is discarded and one retry uses three valid reasons', async () 
   ] });
   expect(result.approach).toEqual(approach);
   const stillBad = await buildStrategy({ card, research, offer: 'workflow software', ask: async payload => payload.task === 'strategy-verify' ? verified : answer('S9') });
-  // Two verified reasons still show the score; the unsupported one is dropped.
-  expect(stillBad.fit).toEqual({ score: 87, label: 'high', reasons: [{ text: 'company', basis: 'S2' }, { text: 'role', basis: 'card' }] });
+  expect(stillBad.fit).toEqual({ score: null, label: 'unknown', reasons: [{ text: 'company', basis: 'S2' }, { text: 'role', basis: 'card' }] });
 });
 
 test('a real S1 number does not license a claim absent from its source or from the approach', async () => {
@@ -64,7 +63,7 @@ test('a real S1 number does not license a claim absent from its source or from t
 
   const uncorrected = await buildStrategy({ card, research, offer: 'workflow software', ask: async payload =>
     payload.task === 'strategy' ? answer(true) : { ...verified, unsupportedReasons: [0] } });
-  expect(uncorrected.fit).toEqual({ score: 70, label: 'medium', reasons: [{ text: 'Director', basis: 'card' }, { text: 'workflow software', basis: 'offer' }] });
+  expect(uncorrected.fit).toEqual({ score: null, label: 'unknown', reasons: [{ text: 'Director', basis: 'card' }, { text: 'workflow software', basis: 'offer' }] });
   await expect(buildStrategy({ card, research, offer: 'workflow software', ask: async payload =>
     payload.task === 'strategy' ? answer(true) : { ...verified, unsupportedReasons: [0], unsupportedApproach: ['problem'] } })).rejects.toThrow('근거 없는 접근 전략');
   await expect(buildStrategy({ card, research, offer: 'workflow software', ask: async payload =>
@@ -85,6 +84,21 @@ test('assumptions and absent inputs cannot establish three grounded fit reasons'
   } });
   expect(calls.filter(call => call.task === 'strategy')).toHaveLength(2);
   expect(result.fit).toEqual({ score: null, label: 'unknown', reasons: [{ text: 'Director', basis: 'card' }] });
+});
+
+test('three repeated bases do not count as three independent fit reasons', async () => {
+  const tasks: string[] = [];
+  const result = await buildStrategy({ card, research, offer: 'workflow software', ask: async payload => {
+    tasks.push(String(payload.task));
+    if (payload.task === 'strategy-verify') return verified;
+    return { fit: { score: 80, label: 'high', reasons: [
+      { text: 'first observation', basis: 'card' }, { text: 'second observation', basis: 'card' },
+      { text: 'software', basis: 'offer' },
+    ] }, approach, nextAction, approachBasis, nextActionBasis };
+  } });
+  expect(tasks).toEqual(['strategy', 'strategy-verify', 'strategy', 'strategy-verify']);
+  expect(result.fit.score).toBeNull();
+  expect(result.fit.label).toBe('unknown');
 });
 
 test('without offer fit stays unknown while approach and next action are produced', async () => {
@@ -139,6 +153,61 @@ test('next action customer promises and dates require evidence or an internal-pl
       approach, approachBasis, nextAction: { what: 'Jane promised a purchase', due: 'Jane confirmed Friday' }, nextActionBasis } })).rejects.toThrow('근거 없는 접근 전략/다음 행동');
 });
 
+test('a malformed strategy answer gets one retry and never skips evidence verification', async () => {
+  const tasks: string[] = [];
+  const result = await buildStrategy({ card, research, offer: 'workflow software', ask: async payload => {
+    tasks.push(String(payload.task));
+    if (payload.task === 'strategy-verify') return verified;
+    if (tasks.filter(task => task === 'strategy').length === 1) return { reply: 'not JSON' };
+    expect(payload.instruction).toContain('올바른 JSON 객체');
+    return { fit: { score: 70, label: 'medium', reasons: [
+      { text: 'cloud', basis: 'S1' }, { text: 'role', basis: 'card' }, { text: 'software', basis: 'offer' },
+    ] }, approach, nextAction, approachBasis, nextActionBasis };
+  } });
+  expect(tasks).toEqual(['strategy', 'strategy', 'strategy-verify']);
+  expect(result.fit.score).toBe(70);
+  await expect(buildStrategy({ card, research, offer: 'software', ask: async () => ({ reply: 'not JSON' }) }))
+    .rejects.toThrow('strategy 응답 JSON 객체 없음');
+});
+
+test('a strategy with missing fields retries once rather than returning a partial approach', async () => {
+  const tasks: string[] = [];
+  const answer = { fit: { score: 70, label: 'medium', reasons: [
+    { text: 'cloud', basis: 'S1' }, { text: 'role', basis: 'card' }, { text: 'software', basis: 'offer' },
+  ] }, approach, nextAction, approachBasis, nextActionBasis };
+  const result = await buildStrategy({ card, research, offer: 'software', ask: async payload => {
+    tasks.push(String(payload.task));
+    if (payload.task === 'strategy-verify') return verified;
+    if (tasks.filter(task => task === 'strategy').length === 1) return { ...answer, approach: { ...approach, who: '' } };
+    expect(payload.instruction).toContain('필수 필드가 빠졌다');
+    return answer;
+  } });
+  expect(tasks).toEqual(['strategy', 'strategy', 'strategy-verify']);
+  expect(result.approach).toEqual(approach);
+  await expect(buildStrategy({ card, research, offer: 'software', ask: async () => ({ ...answer, nextAction: { ...nextAction, due: '' } }) }))
+    .rejects.toThrow('접근 전략 필수 필드 없음');
+});
+
+test('reason and approach bases must point to present inputs and nonempty research evidence', async () => {
+  const emptyResearch = { sources: [{ url: 'https://acme.example/', title: '', snippet: '' }] };
+  const tasks: string[] = [];
+  const result = await buildStrategy({ card, research: emptyResearch, offer: 'workflow software', ask: async payload => {
+    tasks.push(String(payload.task));
+    if (payload.task === 'strategy-verify') return verified;
+    const bad = tasks.filter(task => task === 'strategy').length === 1;
+    return { fit: { score: 80, label: 'high', reasons: bad
+      ? [{ text: 'nothing to cite', basis: 'S1' }, { text: 'role', basis: 'card' }, { text: 'offer', basis: 'offer' }]
+      : [{ text: 'role', basis: 'card' }, { text: 'offer', basis: 'offer' }, { text: 'context absent', basis: 'context' }] },
+      approach, nextAction, approachBasis: { ...approachBasis, problem: bad ? ['S1'] : ['assumption'] }, nextActionBasis };
+  } });
+  expect(tasks).toEqual(['strategy', 'strategy-verify', 'strategy', 'strategy-verify']);
+  expect(result.fit).toEqual({ score: null, label: 'unknown', reasons: [{ text: 'role', basis: 'card' }, { text: 'offer', basis: 'offer' }] });
+  await expect(buildStrategy({ card, research: emptyResearch, offer: 'software', ask: async payload => payload.task === 'strategy-verify' ? verified
+    : { fit: { score: 80, label: 'high', reasons: [{ text: 'role', basis: 'card' }, { text: 'offer', basis: 'offer' }] },
+      approach, nextAction, approachBasis: { ...approachBasis, problem: ['S1'] }, nextActionBasis } }))
+    .rejects.toThrow('근거 없는 접근 전략/다음 행동');
+});
+
 test('CRM upserts by email or name and company, sorts null last, quotes commas, quotes and newlines', () => {
   const dir = mkdtempSync(join(tmpdir(), 'strategy-crm-'));
   try {
@@ -162,6 +231,10 @@ test('CRM upserts by email or name and company, sorts null last, quotes commas, 
     upsertCrm(path, crmRow({ name: 'Fourth', company: 'Co', email: '' }, fit(60), approach, nextAction, 'line1\nline2, "quoted"', 'now'));
     upsertCrm(path, crmRow({ name: 'Fifth', company: 'Co', email: '' }, fit(50), approach, nextAction, '', 'now'));
     csv = readFileSync(path, 'utf8');
+    expect(csv).toContain('"line1\nline2, ""quoted"""');
+    upsertCrm(path, crmRow({ name: 'Fourth', company: 'Co', email: '' }, fit(60), approach, nextAction, 'line1\nline2, "quoted"', 'later'));
+    csv = readFileSync(path, 'utf8');
+    expect((csv.match(/Fourth/g) ?? [])).toHaveLength(1);
     expect(csv).toContain('"line1\nline2, ""quoted"""');
     upsertCrm(path, crmRow({ name: 'Fifth', company: 'Co', email: '' }, fit(55), approach, nextAction, '', 'later'));
     csv = readFileSync(path, 'utf8');

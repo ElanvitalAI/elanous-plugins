@@ -40,25 +40,37 @@ export async function buildStrategy({ card, research, context = '', offer = '', 
   const sources = Array.isArray(research.sources) ? research.sources.map(object).filter(source => /^https?:\/\//.test(text(source.url))) : [];
   const evidence = sources.map((source, i) => ({ id: `S${i + 1}`, title: text(source.title), snippet: text(source.snippet), url: text(source.url) }));
   const hasOffer = !!text(offer);
-  const validBasis = (basis: string) => ['card', 'context', 'assumption'].includes(basis) || basis === 'offer' && hasOffer || /^S[1-9]\d*$/.test(basis) && Number(basis.slice(1)) <= evidence.length;
+  const sourceBasis = (basis: string) => /^S[1-9]\d*$/.test(basis) && Number(basis.slice(1)) <= evidence.length
+    && !!(evidence[Number(basis.slice(1)) - 1]?.title || evidence[Number(basis.slice(1)) - 1]?.snippet);
   const fitBasis = (basis: string) => basis === 'card' && Object.values(card).some(value => !!text(value))
-    || basis === 'context' && !!text(context) || basis === 'offer' && hasOffer
-    || /^S[1-9]\d*$/.test(basis) && Number(basis.slice(1)) <= evidence.length
-      && !!(evidence[Number(basis.slice(1)) - 1]?.title || evidence[Number(basis.slice(1)) - 1]?.snippet);
+    || basis === 'context' && !!text(context) || basis === 'offer' && hasOffer || sourceBasis(basis);
+  const validBasis = (basis: string) => basis === 'assumption' || fitBasis(basis);
   const citedEvidence = (basis: string) => /^S\d+$/.test(basis) ? evidence[Number(basis.slice(1)) - 1] : undefined;
   const instruction = 'JSON 객체만 출력: {"fit":{"score":0~100,"label":"high|medium|low","reasons":[{"text":"이유","basis":"S1|card|context|offer"} 3개]},"approach":{"who":"누구에게","problem":"어떤 문제","proposal":"어떤 제안","channel":"어느 채널","timing":"언제"},"approachBasis":{"who":["card"],"problem":["S1"],"proposal":["offer"],"channel":["assumption"],"timing":["assumption"]},"nextAction":{"what":"할 일","due":"기한"},"nextActionBasis":{"what":["assumption"],"due":["assumption"]}}. approachBasis와 nextActionBasis에는 각 필드의 주장에 실제로 사용한 근거 번호/입력을 적을 것. S#는 제공된 evidence 번호만 사용. nextAction은 고객의 확정 약속이나 확정 일정을 주장하지 말고 우리가 제안할 내부 행동과 목표 기한으로만 작성할 것. 출처에 없는 사실을 꾸며내지 말 것. offer가 없으면 fit 평가는 하지 말고 명함과 만남 맥락만으로 접근 전략을 작성할 것. 메시지는 보내지 말 것. 전략은 구체적이어야 한다(일반론 «AI 로 효율화» 금지): who = 이름·직함 ⊕ 결정권 추정(추정이면 basis 에 assumption); problem = 그 회사가 지금 겪을 법한 문제 하나 — 근거는 출처 S# 또는 만남 맥락(context)이어야 하고 없으면 만남 맥락에서 나온 관심사로 좁힌다; proposal = 우리 제안 하나(수치 약속 없음 · 작은 시범·시연·파일럿처럼 바로 해 볼 수 있는 것); channel = 메일/LinkedIn/전화 중 하나 ⊕ 그 이유 한 구; timing = 날짜나 요일로(예: 행사 다음 날 오전 · 이번 주 금요일 전). fit 이유는 서로 다른 근거로 셋을 채워라(card·context·offer·S#).';
   let answer: Data = {};
   let reasons: Fit['reasons'] = [];
   let feedback = '';
   for (let attempt = 0; attempt < 2; attempt++) {
-    answer = parseAnswer(await ask({ task: 'strategy', instruction: instruction + feedback, card, research: hasOffer ? { summary: research.summary, news: research.news } : {}, context, offer, evidence: hasOffer ? evidence : [] }));
+    try {
+      answer = parseAnswer(await ask({ task: 'strategy', instruction: instruction + feedback, card, research: hasOffer ? { summary: research.summary, news: research.news } : {}, context, offer, evidence: hasOffer ? evidence : [] }));
+    } catch (error) {
+      if (attempt === 1) throw error;
+      feedback = ' 이전 답이 올바른 JSON 객체가 아니었다. 지정한 필드를 갖춘 JSON 객체만 다시 작성하라.';
+      continue;
+    }
+    const approachData = object(answer.approach);
+    const actionData = object(answer.nextAction);
+    if ((['who', 'problem', 'proposal', 'channel', 'timing'] as const).some(field => !text(approachData[field]))
+      || !text(actionData.what) || !text(actionData.due)) {
+      if (attempt === 1) throw new Error('접근 전략 필수 필드 없음');
+      feedback = ' 이전 답에 접근 전략 또는 다음 행동 필수 필드가 빠졌다. 모두 채워 다시 작성하라.';
+      continue;
+    }
     const raw = hasOffer && Array.isArray(object(answer.fit).reasons) ? object(answer.fit).reasons as unknown[] : [];
     reasons = raw.map(object).map(item => ({ text: text(item.text), basis: text(item.basis) }))
       .filter(item => item.text && fitBasis(item.basis)).slice(0, 3);
-    const invalidNumber = raw.some(item => /^S\d+$/.test(text(object(item).basis)) && !fitBasis(text(object(item).basis)));
+    const invalidNumber = raw.some(item => !text(object(item).text) || !fitBasis(text(object(item).basis)));
     const claims = reasons.map((reason, i) => ({ i, text: reason.text, basis: reason.basis, evidence: citedEvidence(reason.basis) }));
-    const approachData = object(answer.approach);
-    const actionData = object(answer.nextAction);
     const basisFor = (rawBasis: unknown) => {
       const entries = Array.isArray(rawBasis) ? rawBasis : [];
       return entries.map(text).filter(validBasis);
@@ -83,16 +95,16 @@ export async function buildStrategy({ card, research, context = '', offer = '', 
     const badAction = verdict.unsupportedAction.filter(field => actionClaims.some(claim => claim.field === field));
     if (verdict.unsupportedReasons.some(i => !badReasons.has(i as number)) || verdict.unsupportedApproach.length !== badApproach.length || verdict.unsupportedAction.length !== badAction.length) throw new Error('전략 근거 검증 응답을 읽지 못했다');
     reasons = reasons.filter((_, i) => !badReasons.has(i));
-    if (!invalidNumber && !invalidClaims && (!hasOffer || reasons.length >= 2) && badReasons.size === 0 && badApproach.length === 0 && badAction.length === 0) break;
+    if (!invalidNumber && !invalidClaims && (!hasOffer || (reasons.length >= 3 && new Set(reasons.map(reason => reason.basis)).size >= 3)) && badReasons.size === 0 && badApproach.length === 0 && badAction.length === 0) break;
     if (attempt === 1 && (badApproach.length || badAction.length || invalidClaims)) throw new Error(`근거 없는 접근 전략/다음 행동: ${[...badApproach, ...badAction].join(', ') || '근거 누락'}`);
     feedback = ' 이전 답에서 존재하지 않는 S# 또는 근거 내용과 불일치하는 이유·접근 전략·다음 행동을 제외하고, 근거 세 개와 주장별 근거를 다시 작성하라. 고객 약속·확정 일정은 확인된 근거가 없으면 쓰지 말고 내부 제안·목표 기한만 적어라.';
   }
   const fitData = object(answer.fit);
   const score = typeof fitData.score === 'number' && Number.isFinite(fitData.score) && fitData.score >= 0 && fitData.score <= 100 ? fitData.score : null;
   const label = fitData.label;
+  const grounded = reasons.length >= 3 && new Set(reasons.map(reason => reason.basis)).size >= 3;
   const fit: Fit = hasOffer
-    // Two verified reasons are enough to show a score; with fewer the fit is not judged.
-    ? { score: reasons.length >= 2 ? score : null, label: reasons.length >= 2 && score !== null && (label === 'high' || label === 'medium' || label === 'low') ? label : 'unknown', reasons }
+    ? { score: grounded ? score : null, label: grounded && score !== null && (label === 'high' || label === 'medium' || label === 'low') ? label : 'unknown', reasons }
     : { score: null, label: 'unknown', reasons: [{ text: 'offer 입력이 없어 맞음을 판정하지 않았다', basis: 'offer' }] };
   const approachData = object(answer.approach), actionData = object(answer.nextAction);
   const approach: Approach = {
@@ -100,7 +112,6 @@ export async function buildStrategy({ card, research, context = '', offer = '', 
     channel: text(approachData.channel), timing: text(approachData.timing),
   };
   const nextAction: NextAction = { what: text(actionData.what), due: text(actionData.due) };
-  if (Object.values(approach).some(value => !value) || !nextAction.what || !nextAction.due) throw new Error('접근 전략 필수 필드 없음');
   return { fit, approach, nextAction };
 }
 

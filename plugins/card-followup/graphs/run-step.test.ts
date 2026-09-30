@@ -154,7 +154,9 @@ test('installed graph completes and writes all three drafts with sources', async
   expect(state.status).toBe('done');
   const recipes = parseYaml(readFileSync(join(installed, 'graphs/recipes.yaml'), 'utf8')) as Record<string, { command: string; timeout_ms: number }>;
   expect(commands).toEqual(['read-card', 'research', 'strategy', 'draft', 'report'].map(id => recipes[id]!.command));
-  expect(recipes.strategy!.timeout_ms).toBe(120000);
+  // Up to four LLM calls (write ⊕ verify, one retry) — 120 s was hit live on 10-01.
+  expect(recipes.strategy!.timeout_ms).toBe(300000);
+  expect(recipes.draft!.timeout_ms).toBe(300000);
   const report = readFileSync(join(state.statePath.slice(0, -5), 'followup.md'), 'utf8');
   // The report is shown on screens: the CRM line names the file, never the home path.
   expect(report).toContain('파일: crm.csv');
