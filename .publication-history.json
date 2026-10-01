@@ -73,5 +73,10 @@
     "name": "card-followup",
     "version": "0.2.3",
     "sha256": "f19e8a9883fbc1248cee4870e5262907fd9a85ab39e513fed0058ef1a719e33e"
+  },
+  {
+    "name": "video-explainer",
+    "version": "0.1.0",
+    "sha256": "d5420b6d142041e04c4eebaa26441b88af8ad1d1717db860e7147ae4e189778a"
   }
 ]

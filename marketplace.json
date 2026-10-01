@@ -3,8 +3,8 @@
   "interface": {
     "displayName": "Elanous"
   },
-  "sequence": 10,
-  "generatedAt": "2026-09-30T22:29:30.224Z",
+  "sequence": 11,
+  "generatedAt": "2026-10-01T03:25:57.838Z",
   "plugins": [
     {
       "name": "card-followup",
@@ -310,6 +310,67 @@
             "ffmpeg",
             "node",
             "python3"
+          ]
+        },
+        "pricing": {
+          "model": "free"
+        },
+        "trust": "official"
+      }
+    },
+    {
+      "name": "video-explainer",
+      "source": {
+        "source": "local",
+        "path": "./plugins/video-explainer"
+      },
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "ON_USE"
+      },
+      "category": "Productivity",
+      "version": "0.1.0",
+      "description": "Make a narrated «N things at once» explainer video from a list of facts: script, word-timed voice-over, line-art diagrams and a checked render.",
+      "artifact": {
+        "sha256": "d5420b6d142041e04c4eebaa26441b88af8ad1d1717db860e7147ae4e189778a",
+        "bytes": 27723,
+        "key": "video-explainer/0.1.0/d5420b6d142041e04c4eebaa26441b88af8ad1d1717db860e7147ae4e189778a.tgz"
+      },
+      "ai.elanous": {
+        "nodes": [
+          "./nodes/explainer.yaml",
+          "./nodes/field-reel.yaml"
+        ],
+        "capabilities": [
+          "fs:workdir",
+          "proc:node",
+          "proc:bun",
+          "proc:npx",
+          "proc:ffmpeg",
+          "net:api.elevenlabs.io",
+          "net:cdn.jsdelivr.net",
+          "secret:elevenlabs"
+        ],
+        "connectors": [
+          {
+            "id": "elevenlabs",
+            "kind": "api-key",
+            "userConfig": [
+              {
+                "key": "ELEVENLABS_API_KEY",
+                "label": "ElevenLabs API key (optional — without it a draft system voice is used on macOS)",
+                "secret": true,
+                "env": "ELEVENLABS_API_KEY"
+              }
+            ]
+          }
+        ],
+        "requires": {
+          "tools": [
+            "node",
+            "bun",
+            "npx",
+            "ffmpeg"
           ]
         },
         "pricing": {
