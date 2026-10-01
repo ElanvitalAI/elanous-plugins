@@ -3,8 +3,8 @@
   "interface": {
     "displayName": "Elanous"
   },
-  "sequence": 11,
-  "generatedAt": "2026-10-01T03:25:57.838Z",
+  "sequence": 12,
+  "generatedAt": "2026-10-01T03:30:50.105Z",
   "plugins": [
     {
       "name": "card-followup",
@@ -329,12 +329,12 @@
         "authentication": "ON_USE"
       },
       "category": "Productivity",
-      "version": "0.1.0",
+      "version": "0.1.1",
       "description": "Make a narrated «N things at once» explainer video from a list of facts: script, word-timed voice-over, line-art diagrams and a checked render.",
       "artifact": {
-        "sha256": "d5420b6d142041e04c4eebaa26441b88af8ad1d1717db860e7147ae4e189778a",
-        "bytes": 27723,
-        "key": "video-explainer/0.1.0/d5420b6d142041e04c4eebaa26441b88af8ad1d1717db860e7147ae4e189778a.tgz"
+        "sha256": "d21c1cd85fcfcf2a6b41173b2050fa000da4917e3d239317a1e40e49a2cad107",
+        "bytes": 27648,
+        "key": "video-explainer/0.1.1/d21c1cd85fcfcf2a6b41173b2050fa000da4917e3d239317a1e40e49a2cad107.tgz"
       },
       "ai.elanous": {
         "nodes": [

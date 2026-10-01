@@ -78,5 +78,10 @@
     "name": "video-explainer",
     "version": "0.1.0",
     "sha256": "d5420b6d142041e04c4eebaa26441b88af8ad1d1717db860e7147ae4e189778a"
+  },
+  {
+    "name": "video-explainer",
+    "version": "0.1.1",
+    "sha256": "d21c1cd85fcfcf2a6b41173b2050fa000da4917e3d239317a1e40e49a2cad107"
   }
 ]
