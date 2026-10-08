@@ -3,8 +3,8 @@
   "interface": {
     "displayName": "Elanous"
   },
-  "sequence": 12,
-  "generatedAt": "2026-10-01T03:30:50.105Z",
+  "sequence": 13,
+  "generatedAt": "2026-10-08T16:04:21.809Z",
   "plugins": [
     {
       "name": "card-followup",
@@ -219,6 +219,84 @@
           "proc:elanous"
         ],
         "connectors": [],
+        "pricing": {
+          "model": "free"
+        },
+        "trust": "official"
+      }
+    },
+    {
+      "name": "image-first-shorts",
+      "source": {
+        "source": "local",
+        "path": "./plugins/image-first-shorts"
+      },
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "ON_USE"
+      },
+      "category": "Productivity",
+      "version": "0.1.0",
+      "description": "Make an image-first vertical anime/character short: first-frame images, image-to-video with a swappable backend, chroma-key matting, beat-measured sound, code-rendered effects and a final composite, with three human approval gates. Source: 공냥이 AI 실험실 (https://malfoy-meme-making.vercel.app/).",
+      "artifact": {
+        "sha256": "35b49c13e69d42c0ac68e97546971f0907133d543bb3fe73c10b83b1bc453146",
+        "bytes": 36464,
+        "key": "image-first-shorts/0.1.0/35b49c13e69d42c0ac68e97546971f0907133d543bb3fe73c10b83b1bc453146.tgz"
+      },
+      "ai.elanous": {
+        "graphs": [
+          "./graphs/image-first-shorts.yaml"
+        ],
+        "capabilities": [
+          "fs:workdir",
+          "proc:bun",
+          "proc:elanous",
+          "proc:bash",
+          "proc:python3",
+          "proc:ffmpeg",
+          "proc:ffprobe",
+          "proc:higgsfield",
+          "agent:codex",
+          "net:api.elevenlabs.io",
+          "net:github.com",
+          "net:huggingface.co",
+          "secret:elevenlabs"
+        ],
+        "connectors": [
+          {
+            "id": "elevenlabs",
+            "kind": "api-key",
+            "userConfig": [
+              {
+                "key": "ELEVENLABS_API_KEY",
+                "label": "ElevenLabs API key (music, voice lines)",
+                "secret": true,
+                "env": "ELEVENLABS_API_KEY"
+              }
+            ]
+          }
+        ],
+        "requires": {
+          "tools": [
+            "bun",
+            "python3",
+            "ffmpeg",
+            "ffprobe",
+            "codex"
+          ],
+          "optionalTools": [
+            "higgsfield"
+          ],
+          "optionalPython": [
+            "numpy",
+            "opencv-python",
+            "pillow",
+            "rembg",
+            "onnxruntime",
+            "librosa",
+            "faster-whisper"
+          ]
+        },
         "pricing": {
           "model": "free"
         },

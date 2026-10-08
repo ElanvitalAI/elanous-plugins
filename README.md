@@ -26,4 +26,4 @@ codex plugin add elanous-basics@elanous
 
 ## Licenses
 
-Apache-2.0 (see `LICENSE`), except `skills/motion-broll/` inside `elanous-media` and `video-broll`, which is MIT from Barty-Bart/motion-graphics (its own `LICENSE` and `SOURCE.md` are included; the bundled Geist fonts are OFL).
+Apache-2.0 (see `LICENSE`), except `skills/motion-broll/` inside `elanous-media` and `video-broll`, which is MIT from Barty-Bart/motion-graphics (its own `LICENSE` and `SOURCE.md` are included; the bundled Geist fonts are OFL). `image-first-shorts` is PolyForm Noncommercial 1.0.0 — adapted with permission from 공냥이 AI 실험실; noncommercial use only, and its `LICENSE` notice and `SOURCE.md` must stay in every copy.
