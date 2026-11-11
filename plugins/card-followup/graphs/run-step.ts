@@ -37,14 +37,76 @@ function firstObject(raw: string): Data {
 async function cli(bin: string, args: string[]): Promise<string> {
   const child = Bun.spawn([bin, ...args], { stdout: 'pipe', stderr: 'pipe', env: process.env });
   const [stdout, stderr, status] = await Promise.all([new Response(child.stdout).text(), new Response(child.stderr).text(), child.exited]);
-  if (status !== 0) throw new Error(`${args[0]} 실패: ${(stderr || stdout).slice(0, 200)}`);
+  if (status !== 0) throw new Error(`${args[0]} 실패: ${(stderr || stdout).slice(0, 200)}`, { cause: `${stderr}\n${stdout}` });
   return stdout;
+}
+
+const sleep = (ms: number) => new Promise<void>(resolve => setTimeout(resolve, ms));
+
+function transientAskReason(error: unknown): string | null {
+  const message = error instanceof Error ? `${error.message}\n${String(error.cause ?? '')}` : String(error);
+  if (/socket connection was closed/i.test(message)) return 'socket';
+  if (/\bECONNRESET\b/i.test(message)) return 'ECONNRESET';
+  if (/\bETIMEDOUT\b/i.test(message)) return 'ETIMEDOUT';
+  if (/\bEPIPE\b/i.test(message)) return 'EPIPE';
+  if (/fetch failed/i.test(message)) return 'fetch';
+  const http = /\b(?:HTTP(?:\/[\d.]+)?\s*[:=]?\s*|status(?:\s+code)?\s*[:=]?\s*)(502|503|504|429)\b|\b(502|503|504|429)\s+(?:Bad Gateway|Service Unavailable|Gateway Timeout|Too Many Requests)\b/i.exec(message);
+  return http ? `HTTP${http[1] ?? http[2]}` : null;
+}
+
+export async function askWithRetry(payload: Data, run = cli, wait = sleep): Promise<Data> {
+  const args = ['ask', '--json', JSON.stringify(payload)];
+  let raw: string;
+  let retried = false;
+  try {
+    raw = await run(elanous, args);
+  } catch (error) {
+    const reason = transientAskReason(error);
+    if (!reason) throw error;
+    console.error(`card-followup: ask retry (${reason})`);
+    await wait(3000);
+    retried = true;
+    try {
+      raw = await run(elanous, args);
+    } catch (retryError) {
+      throw new Error(`${retryError instanceof Error ? retryError.message : String(retryError)} · 한 번 다시 했지만 실패`);
+    }
+  }
+  try {
+    const response = JSON.parse(raw) as Data;
+    return firstObject(typeof response.reply === 'string' ? response.reply : JSON.stringify(response));
+  } catch (error) {
+    if (retried) throw new Error(`${error instanceof Error ? error.message : String(error)} · 한 번 다시 했지만 실패`);
+    throw error;
+  }
 }
 
 function absolute(path: string, label: string): string {
   const expanded = path.startsWith('~/') ? join(homedir(), path.slice(2)) : path;
   if (!isAbsolute(expanded)) throw new Error(`${label}: 절대 경로 필요`);
   return expanded;
+}
+
+// The page's own <title> and meta/og description — the company's words about itself. 5 s cap; null on any failure.
+async function readPage(url: string): Promise<{ title: string; description: string } | null> {
+  try {
+    const res = await fetch(url, { signal: AbortSignal.timeout(5000), redirect: 'follow', headers: { 'user-agent': 'Mozilla/5.0 card-followup' } });
+    if (!res.ok || !(res.headers.get('content-type') ?? '').includes('html')) return null;
+    const html = (await res.text()).slice(0, 200_000);
+    const decode = (v: string) => v.replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/\s+/g, ' ').trim();
+    const meta = (key: string) => {
+      for (const tag of html.match(/<meta\b[^>]*>/gi) ?? []) {
+        if (new RegExp(`(?:name|property)=["']${key}["']`, 'i').test(tag)) {
+          const content = /content=["']([^"']*)["']/i.exec(tag)?.[1];
+          if (content) return decode(content);
+        }
+      }
+      return '';
+    };
+    const title = decode(/<title[^>]*>([\s\S]*?)<\/title>/i.exec(html)?.[1] ?? '') || meta('og:title');
+    const description = meta('description') || meta('og:description');
+    return title && description ? { title, description } : null;
+  } catch { return null; }
 }
 
 function sources(raw: string): { title: string; url: string; snippet: string }[] {
@@ -60,13 +122,15 @@ function sources(raw: string): { title: string; url: string; snippet: string }[]
   });
 }
 
+const elanous = process.env.CARD_FOLLOWUP_ELANOUS_BIN || 'elanous';
+
+if (import.meta.main) {
 const contextFile = process.env.ELANOUS_GRAPH_CONTEXT;
 if (!contextFile) throw new Error('ELANOUS_GRAPH_CONTEXT 필요');
 const context = object(JSON.parse(readFileSync(contextFile, 'utf8')));
 const input = object(context.input);
 const outputs = object(context.outputs);
 const step = process.argv[2];
-const elanous = process.env.CARD_FOLLOWUP_ELANOUS_BIN || 'elanous';
 const codex = process.env.CARD_FOLLOWUP_CODEX_BIN || 'codex';
 const result = (data: Data) => console.log(JSON.stringify(data.outcome ? data : { outcome: 'ok', ...data }));
 
@@ -86,7 +150,10 @@ try {
     const card = object(read.card ?? read);
     const company = text(card.company), name = text(card.name);
     if (!company && !name) throw new Error('조사할 이름·회사 없음');
-    const queries = [company || name, [name, company].filter(Boolean).join(' ')];
+    // The card's own site is the strongest query: «Elanvital AI» alone ranks vital.ai and elanvital.co above elanvital.ai
+    // (10-01 dry run: 19 hits, none from the company), while «elanvital.ai» returns the site itself.
+    const siteQuery = text(card.url).replace(/^https?:\/\//, '').replace(/^www\./, '').split('/')[0]!.toLowerCase();
+    const queries = [...new Set([...(siteQuery.includes('.') ? [siteQuery] : []), company || name, [name, company].filter(Boolean).join(' ')])];
     const hits = (await Promise.all(queries.map(query => cli(elanous, ['research', '--json', '--limit', '5', query])))).flatMap(sources);
     const unique = [...new Map(hits.map(hit => [hit.url, hit])).values()];
     // Only the exact result text may be reported as a company fact, never a model-invented summary.
@@ -111,17 +178,26 @@ try {
     };
     // Only hits that name the card's company or site are kept: a name search also returns other people with the
     // same name (10-01 live run: strangers' LinkedIn, Instagram and IMDb pages listed as this contact's sources).
-    const relevant = unique.filter(matches);
+    // A site hit often comes back as a bare link with no title or snippet («https://elanvital.ai» · «-»): nothing a
+    // strategy can cite, and the verifier rejects claims resting on it (10-01 dry run: strategy failed twice on «who»).
+    // Read the page's own <title> and description once instead, and keep one row per host.
+    const thin = (hit: { title: string }) => /^https?:\/\//i.test(hit.title.trim()) || hostOf(`https://${hit.title.trim()}`) === hit.title.trim().toLowerCase();
+    const seenHost = new Set<string>();
+    const relevant: { title: string; url: string; snippet: string }[] = [];
+    for (const hit of unique.filter(matches)) {
+      const host = hostOf(hit.url);
+      if (!thin(hit)) { relevant.push(hit); continue; }
+      if (seenHost.has(host)) continue;
+      seenHost.add(host);
+      const page = await readPage(hit.url);
+      if (page) relevant.push({ title: page.title, url: hit.url, snippet: page.description });
+    }
     result({ summary: relevant.length ? relevant[0]!.title : null, news: relevant.slice(1, 3).map(hit => hit.title), sources: relevant, dropped: unique.length - relevant.length });
   } else if (step === 'strategy') {
     const read = object(outputs['read-card']);
     const card = object(read.card ?? read);
     const research = object(outputs.research);
-    const ask = async (payload: Data): Promise<Data> => {
-      const response = JSON.parse(await cli(elanous, ['ask', '--json', JSON.stringify(payload)])) as Data;
-      return firstObject(typeof response.reply === 'string' ? response.reply : JSON.stringify(response));
-    };
-    const strategy = await buildStrategy({ card, research, context: text(input.context), offer: text(input.offer), ask });
+    const strategy = await buildStrategy({ card, research, context: text(input.context), offer: text(input.offer), ask: askWithRetry });
     const fallback = dirname(contextFile).endsWith('.json.contexts') ? dirname(contextFile).slice(0, -'.json.contexts'.length) : dirname(contextFile);
     const outDir = input.outDir === undefined ? fallback : absolute(text(input.outDir), 'outDir');
     const crm = input.crm === undefined ? join(outDir, 'crm.csv') : absolute(text(input.crm), 'crm');
@@ -144,11 +220,13 @@ try {
     const marker = /\s*\[S(\d+)\]/g;
     const strip = (value: string) => value.replace(marker, '').trim();
     const sentencesOf = (value: string) => value.split(/(?<=[.!?。！？])\s+|\n+/).map(s => s.trim()).filter(Boolean);
-    const ask = async (payload: Data): Promise<Data> => {
-      const response = JSON.parse(await cli(elanous, ['ask', '--json', JSON.stringify(payload)])) as Data;
-      return firstObject(typeof response.reply === 'string' ? response.reply : JSON.stringify(response));
-    };
-    const instruction = 'JSON 객체만 출력: subject, body (120~200자 · [S#] 표시는 글자 수에서 뺀다), linkedin (300자 이하), question. context가 있으면 body에 그 문구를 그대로 한 번 포함. '
+    // A Korean meeting note on an English card used to be pasted verbatim into the English mail
+    // («Hi Joosung, 마케터의 밤에서 인사.» · 10-01 dry run). Across languages the note is translated, not copied.
+    const crossLanguage = language === 'en' && /[가-힣]/.test(contextLine);
+    const contextRule = crossLanguage
+      ? 'context 는 한국어 메모다 — 원문을 그대로 넣지 말고 영어로 옮겨 body 에서 한 번 언급하라. subject·body·linkedin·question 에 한글을 쓰지 말 것. '
+      : 'context가 있으면 body에 그 문구를 그대로 한 번 포함. ';
+    const instruction = 'JSON 객체만 출력: subject, body (120~200자 · [S#] 표시는 글자 수에서 뺀다), linkedin (300자 이하), question. ' + contextRule
       + '명함 필드(이름·직함·회사)와 context 는 출처 없이 써도 된다. 그 밖의 회사·사람·시장 사실은 evidence 에 있는 것만 쓰고, 그 문장 끝에 근거 번호를 [S1] 처럼 붙인다. '
       + 'approach.problem·proposal·channel 에 맞춰 메일과 LinkedIn 초안을 작성하되, 전략 문구도 회사·사람·시장 사실이면 위의 문장별 근거 규칙을 반드시 따를 것. '
       + 'evidence 에 없는 사실(매출·순위·규모·수상·최근 소식 등)은 쓰지 말 것. email이 없으면 메일 주소를 만들지 말 것. 어떤 메시지도 보내지 말 것.';
@@ -156,7 +234,7 @@ try {
     let accepted: { warnings: string[]; draft: Data; facts: { text: string; url: string }[] } | undefined;
     let lastProblem = '';
     for (let attempt = 0; attempt < 3 && !accepted; attempt++) {
-      const draft = await ask({ task: 'draft', instruction: instruction + feedback, card, context: contextLine, sender: text(input.sender), language, evidence: numbered, approach: { problem: text(approach.problem), proposal: text(approach.proposal), channel: text(approach.channel) } });
+      const draft = await askWithRetry({ task: 'draft', instruction: instruction + feedback, card, context: contextLine, sender: text(input.sender), language, evidence: numbered, approach: { problem: text(approach.problem), proposal: text(approach.proposal), channel: text(approach.channel) } });
       const parts = { subject: text(draft.subject), body: text(draft.body), linkedin: text(draft.linkedin), question: text(draft.question) };
       if (!parts.subject || !parts.body || !parts.linkedin || !parts.question) { lastProblem = '초안 필수 필드 없음'; feedback = ' 이전 응답에 필드가 빠졌다.'; continue; }
       const body = strip(parts.body), linkedin = strip(parts.linkedin);
@@ -165,7 +243,8 @@ try {
       // LinkedIn 한도는 한 번 다시 부르고, 그래도 넘으면 막지 않고 보고서에 경고로 남긴다(보내기 전 사람이 고친다).
       const linkedinOver = linkedin.length > 300;
       if (linkedinOver && attempt === 0) shape.push(`LinkedIn 300자 초과(${linkedin.length}자)`);
-      if (contextLine && !body.includes(contextLine)) shape.push('메일 본문에 context 없음');
+      if (contextLine && !crossLanguage && !body.includes(contextLine)) shape.push('메일 본문에 context 없음');
+      if (crossLanguage && /[가-힣]/.test([parts.subject, body, linkedin, parts.question].join(' '))) shape.push('영어 초안에 한글이 섞였다(context 는 영어로 옮길 것)');
       const sentences = Object.values(parts).flatMap(sentencesOf).map(sentence => ({
         raw: sentence, text: strip(sentence), cites: [...sentence.matchAll(marker)].map(match => Number(match[1])),
       }));
@@ -173,7 +252,7 @@ try {
       if (badCite) shape.push(`없는 출처 번호: ${badCite.raw}`);
       if (shape.length) { lastProblem = shape.join(' · '); feedback = ` 이전 초안 문제: ${lastProblem}. 모두 고쳐 다시 작성하라.`; continue; }
       // Every sentence is judged against the card, the context and only the evidence it cites — a company name alone is identity, not a claim.
-      const verdict = await ask({
+      const verdict = await askWithRetry({
         task: 'verify',
         instruction: '각 문장에 대해, 받는 사람·그 회사·시장에 관한 사실 주장이 명함 필드, context, 또는 그 문장이 인용한 evidence 로 뒷받침되는지 판정하라. 인사·호칭·명함에 있는 이름/회사/직함 언급·제안·질문·보내는 사람의 의도는 사실 주장이 아니다. JSON 객체만 출력: {"unsupported":[뒷받침 안 되는 문장 번호]}',
         card, context: contextLine,
@@ -198,8 +277,10 @@ try {
     const hits = Array.isArray(research.sources) ? research.sources.map(object) : [];
     const warnings = Array.isArray(draft.warnings) ? draft.warnings.map(text).filter(Boolean) : [];
     const crm = text(strategy.crm);
-    if (!crm || !Array.isArray(fit.reasons)) throw new Error('전략 없음');
     const row = object(strategy.crmRow);
+    if (!crm || !Array.isArray(fit.reasons) || !text(approach.who) || !text(approach.problem)
+      || !text(approach.proposal) || !text(approach.channel) || !text(approach.timing)
+      || !text(nextAction.what) || !text(nextAction.due) || !('fit_label' in row)) throw new Error('전략 없음');
     const md = ['# 명함 영업 계획', '', '## ① 사람·회사 분석',
       `${line(card.name) || '이름 없음'} · ${line(card.title) || '직함 없음'} · ${line(card.company) || '회사 없음'} · ${line(card.email) || '이메일 없음'}`,
       `조사 요약: ${hits.length ? line(research.summary) : '조사 결과 없음'}`, '',
@@ -226,4 +307,5 @@ try {
   } else throw new Error(`unknown step: ${step}`);
 } catch (error) {
   result({ outcome: 'fail', reason: error instanceof Error ? error.message : String(error) });
+}
 }

@@ -3,9 +3,251 @@
   "interface": {
     "displayName": "Elanous"
   },
-  "sequence": 13,
-  "generatedAt": "2026-10-08T16:04:21.809Z",
+  "sequence": 14,
+  "generatedAt": "2026-11-11T23:34:10.062Z",
   "plugins": [
+    {
+      "name": "absorb",
+      "source": {
+        "source": "local",
+        "path": "./plugins/absorb"
+      },
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "ON_USE"
+      },
+      "category": "Productivity",
+      "version": "0.3.9",
+      "description": "Member-owned scrap absorption, daily briefing, and app upgrade suggestion graph.",
+      "artifact": {
+        "sha256": "ccc3c82b7cea47e90852c314baf5adfc8987a5050a176fbbf6d0f4c6ee50b676",
+        "bytes": 9818,
+        "key": "absorb/0.3.9/ccc3c82b7cea47e90852c314baf5adfc8987a5050a176fbbf6d0f4c6ee50b676.tgz"
+      },
+      "ai.elanous": {
+        "graphs": [
+          "graph/absorb-ingest.yaml",
+          "graph/absorb-brief.yaml",
+          "graph/absorb-suggest-list.yaml",
+          "graph/absorb-build.yaml"
+        ],
+        "graphManifests": {
+          "absorb-ingest": {
+            "purpose": "검증된 회원 소유 스크랩을 저장",
+            "allow": {
+              "recipes": [],
+              "skills": [],
+              "domainPacks": []
+            },
+            "hitl": [],
+            "observe": {
+              "categories": [
+                "graph.run",
+                "absorb.scrap"
+              ]
+            }
+          },
+          "absorb-brief": {
+            "purpose": "회원 스크랩 → 오늘의 브리핑 → 앱 제안",
+            "allow": {
+              "recipes": [],
+              "skills": [],
+              "domainPacks": []
+            },
+            "hitl": [],
+            "observe": {
+              "categories": [
+                "graph.run",
+                "graph.unit",
+                "intake.pack",
+                "absorb.brief"
+              ]
+            }
+          },
+          "absorb-suggest-list": {
+            "purpose": "검증된 회원의 기존 앱 제안 읽기",
+            "allow": {
+              "recipes": [],
+              "skills": [],
+              "domainPacks": []
+            },
+            "hitl": [],
+            "observe": {
+              "categories": [
+                "graph.run",
+                "absorb.suggestion"
+              ]
+            }
+          },
+          "absorb-build": {
+            "purpose": "명시 확인을 받은 앱 제안을 격리본으로 빌드·시뮬레이션·발행",
+            "allow": {
+              "recipes": [],
+              "skills": [],
+              "domainPacks": []
+            },
+            "hitl": [
+              "approve-publish"
+            ],
+            "observe": {
+              "categories": [
+                "graph.run",
+                "graph.unit",
+                "app-publish"
+              ]
+            }
+          }
+        },
+        "capabilities": [
+          "store",
+          "extract",
+          "stt",
+          "ocr",
+          "llm-judge",
+          "notify",
+          "app-publish"
+        ],
+        "authoredTrust": "builtin",
+        "packs": [
+          {
+            "id": "member-apps",
+            "version": 1,
+            "path": "packs/member-apps/pack.yaml"
+          }
+        ],
+        "sims": [
+          "sims/absorb-demo-world.yaml"
+        ],
+        "handlers": {
+          "boardApproval": {
+            "module": "handlers/board-approval.ts",
+            "export": "createBoardApprovalDispatch",
+            "skill": "absorb/build"
+          }
+        },
+        "connectors": [],
+        "pricing": {
+          "model": "free"
+        }
+      }
+    },
+    {
+      "name": "architecture-deliverables",
+      "source": {
+        "source": "local",
+        "path": "./plugins/architecture-deliverables"
+      },
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "ON_USE"
+      },
+      "category": "Productivity",
+      "version": "0.1.0",
+      "description": "Generates editable system architecture diagrams and integrated PDFs from structured design JSON (nodes, zones, flows, tables).",
+      "artifact": {
+        "sha256": "c1ad7e4845bb3186d14e37d4d5a22f75056f9a8904811d94adc8095a211c4d5a",
+        "bytes": 508602,
+        "key": "architecture-deliverables/0.1.0/c1ad7e4845bb3186d14e37d4d5a22f75056f9a8904811d94adc8095a211c4d5a.tgz"
+      },
+      "ai.elanous": {
+        "graphs": [
+          "./graphs/architecture-deliverables.yaml"
+        ],
+        "graphProviders": {
+          "./graphs/architecture-deliverables.yaml": {
+            "module": "src/graph-runner/capability-providers/architecture-deliverables.ts",
+            "factory": "createArchitectureDeliverablesRegistry",
+            "withPluginRoot": true
+          }
+        },
+        "outputContract": {
+          "appliesTo": [
+            "system-architecture",
+            "system-architecture-on-gcp",
+            "gcp-cloud-expansion"
+          ],
+          "requiredFiles": [
+            "architecture.excalidraw",
+            "architecture.png",
+            "architecture.html",
+            "architecture.pdf",
+            "verification.json"
+          ],
+          "pdfSections": [
+            "배경",
+            "요구사항",
+            "구성도",
+            "데이터 흐름",
+            "보안 등급",
+            "비용 예측",
+            "절감안",
+            "대안",
+            "결정 기록"
+          ],
+          "diagramQuality": {
+            "iconSource": "Generic: editable vector shapes. GCP: official core/category icon archives, verified by source path and SHA-256",
+            "layers": [
+              "users",
+              "edge",
+              "application",
+              "data",
+              "observability",
+              "security"
+            ],
+            "boundaries": [
+              "system/project",
+              "zone/region",
+              "network/VPC"
+            ],
+            "annotations": [
+              "numbered data flows",
+              "legend",
+              "title",
+              "version"
+            ]
+          },
+          "pdfQuality": [
+            "cover",
+            "table of contents",
+            "executive summary",
+            "embedded diagram",
+            "tables",
+            "appendix"
+          ],
+          "referenceStyle": [
+            "https://cloud.google.com/icons",
+            "https://docs.aws.amazon.com/reference-architecture-diagrams/"
+          ],
+          "completionRule": "All required files exist, nested boundary and flow shapes are present, and the integrated PDF has cover, contents, summary, body, tables, and appendix. GCP mode also verifies official icons."
+        },
+        "capabilities": [
+          "fs:workdir",
+          "proc:bun",
+          "proc:uv",
+          "proc:python"
+        ],
+        "connectors": [],
+        "pricing": {
+          "model": "free"
+        },
+        "trust": "official",
+        "inputContract": {
+          "defaultMode": "structured",
+          "inputKeys": [
+            "structuredDesignPath",
+            "outDir",
+            "resourceRoot"
+          ],
+          "graphApiVersion": "elanous.dev/graph/v2",
+          "structuredDesignPath": "Absolute path to JSON conforming to references/structured-design.schema.json",
+          "legacyFinishedInputs": [
+            "designHtmlPath",
+            "diagramSourcePath"
+          ],
+          "resourceRoot": "Absolute path to existing repository skills used by diagram-master and PDF converter"
+        }
+      }
+    },
     {
       "name": "card-followup",
       "source": {
@@ -17,12 +259,12 @@
         "authentication": "ON_USE"
       },
       "category": "Marketing",
-      "version": "0.2.3",
+      "version": "0.2.9",
       "description": "Business card photo to researched follow-up and LinkedIn drafts. Drafts are never sent.",
       "artifact": {
-        "sha256": "f19e8a9883fbc1248cee4870e5262907fd9a85ab39e513fed0058ef1a719e33e",
-        "bytes": 22809,
-        "key": "card-followup/0.2.3/f19e8a9883fbc1248cee4870e5262907fd9a85ab39e513fed0058ef1a719e33e.tgz"
+        "sha256": "cc7847420842984ffb4f5b0954519fbc78c50d7407d666aa1d01bbc173649671",
+        "bytes": 63716,
+        "key": "card-followup/0.2.9/cc7847420842984ffb4f5b0954519fbc78c50d7407d666aa1d01bbc173649671.tgz"
       },
       "ai.elanous": {
         "graphs": [
@@ -33,6 +275,100 @@
           "proc:bun",
           "proc:elanous",
           "proc:codex"
+        ],
+        "connectors": [],
+        "pricing": {
+          "model": "free"
+        },
+        "trust": "official"
+      }
+    },
+    {
+      "name": "demo-brief-to-requirements",
+      "source": {
+        "source": "local",
+        "path": "./plugins/demo-brief-to-requirements"
+      },
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "ON_USE"
+      },
+      "category": "Productivity",
+      "version": "0.1.0",
+      "description": "Converts an accepted, source-linked briefing into three architecture requirement lines.",
+      "artifact": {
+        "sha256": "1d9e945e4b65c61a4cc933135410b18c9415a2fd49b48d0bc8bb810e91613ffd",
+        "bytes": 3951,
+        "key": "demo-brief-to-requirements/0.1.0/1d9e945e4b65c61a4cc933135410b18c9415a2fd49b48d0bc8bb810e91613ffd.tgz"
+      },
+      "ai.elanous": {
+        "graphs": [
+          "./graphs/brief-to-requirements.yaml",
+          "./graphs/scene4-architecture.yaml"
+        ],
+        "graphProviders": {
+          "./graphs/scene4-architecture.yaml": {
+            "module": "src/graph-runner/ticketing-scene4.ts",
+            "factory": "createScene4Registry"
+          }
+        },
+        "capabilities": [
+          "fs:workdir",
+          "proc:bun"
+        ],
+        "connectors": [],
+        "pricing": {
+          "model": "free"
+        },
+        "trust": "official",
+        "inputContract": {
+          "graphInputKeys": {
+            "demo-brief-to-requirements": [
+              "briefPath",
+              "outDir"
+            ],
+            "demo-scene4-architecture": [
+              "prompt",
+              "answer",
+              "outDir",
+              "stateRoot",
+              "resourceRoot",
+              "architecturePluginRoot",
+              "graphPath"
+            ]
+          },
+          "briefPath": "Absolute path to accepted briefing JSON in references/input-contract.md",
+          "outDir": "Absolute output directory for requirements.txt and requirements.json",
+          "scene4": "Three-line ticketing prompt plus completed model answer; KGS and shared architecture output graph produce RFC, structured JSON, Excalidraw, PNG and PDF"
+        }
+      }
+    },
+    {
+      "name": "doc-draft",
+      "source": {
+        "source": "local",
+        "path": "./plugins/doc-draft"
+      },
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "ON_USE"
+      },
+      "category": "Productivity",
+      "version": "0.1.1",
+      "description": "Drafts one document from a request — executive one-pager, promo or event post, memo. Drafts only; never published.",
+      "artifact": {
+        "sha256": "06e0ae481c9f673571cbdc1026ae438c673e9de67fa408f34aa41a840d3bac09",
+        "bytes": 9792,
+        "key": "doc-draft/0.1.1/06e0ae481c9f673571cbdc1026ae438c673e9de67fa408f34aa41a840d3bac09.tgz"
+      },
+      "ai.elanous": {
+        "graphs": [
+          "./graphs/doc-draft.yaml"
+        ],
+        "capabilities": [
+          "fs:workdir",
+          "proc:bun",
+          "proc:elanous"
         ],
         "connectors": [],
         "pricing": {
@@ -192,6 +528,92 @@
       }
     },
     {
+      "name": "gcp-architect-expand",
+      "source": {
+        "source": "local",
+        "path": "./plugins/gcp-architect-expand"
+      },
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "ON_USE"
+      },
+      "category": "Infrastructure",
+      "version": "0.1.0",
+      "description": "Local-first capacity and cost proposal graph. Declaration and fake-world simulation only; no Google Cloud calls.",
+      "artifact": {
+        "sha256": "1d75b11f785864bac029883276552e62b2426856ccbdccfe27cd770664b1813a",
+        "bytes": 1624744,
+        "key": "gcp-architect-expand/0.1.0/1d75b11f785864bac029883276552e62b2426856ccbdccfe27cd770664b1813a.tgz"
+      },
+      "ai.elanous": {
+        "graphs": [
+          "./graph.yaml",
+          "./tiered-graph.yaml"
+        ],
+        "capabilities": [
+          "cloud-resource",
+          "fs:workdir"
+        ],
+        "graphManifests": {
+          "gcp-architect-expand": {
+            "purpose": "Local-first GCP architecture proposal with an explicit spending HITL gate",
+            "allow": {
+              "recipes": [
+                "cmd:*@./recipes.yaml"
+              ],
+              "capabilities": [
+                "cloud-resource"
+              ],
+              "skills": [],
+              "domainPacks": [
+                "gcp-architect-expand"
+              ]
+            },
+            "hitl": [
+              "approve"
+            ],
+            "observe": {
+              "categories": [
+                "graph.run",
+                "graph.unit",
+                "cloud-resource"
+              ]
+            }
+          },
+          "gcp-advanced-tiered-design": {
+            "purpose": "Offline three-option GCP architecture simulation with an explicit spending HITL gate",
+            "allow": {
+              "recipes": [
+                "cmd:*@./recipes.yaml"
+              ],
+              "capabilities": [
+                "cloud-resource"
+              ],
+              "skills": [],
+              "domainPacks": [
+                "gcp-architect-expand"
+              ]
+            },
+            "hitl": [
+              "approve"
+            ],
+            "observe": {
+              "categories": [
+                "graph.run",
+                "graph.unit",
+                "cloud-resource"
+              ]
+            }
+          }
+        },
+        "outputContract": "./output-contract.json",
+        "connectors": [],
+        "pricing": {
+          "model": "free"
+        }
+      }
+    },
+    {
       "name": "geo-check",
       "source": {
         "source": "local",
@@ -347,6 +769,91 @@
             ]
           }
         ],
+        "pricing": {
+          "model": "free"
+        }
+      }
+    },
+    {
+      "name": "kr-flow-composites",
+      "source": {
+        "source": "local",
+        "path": "./plugins/kr-flow-composites"
+      },
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "ON_USE"
+      },
+      "category": "Finance",
+      "version": "0.1.0",
+      "description": "Read-only Korean sector, battery, and ETF market-data composition graphs.",
+      "artifact": {
+        "sha256": "2c462ae8209226b3967ae3ef2a06b893146d3c72801b5f3fa7302016461ce7e7",
+        "bytes": 2373,
+        "key": "kr-flow-composites/0.1.0/2c462ae8209226b3967ae3ef2a06b893146d3c72801b5f3fa7302016461ce7e7.tgz"
+      },
+      "ai.elanous": {
+        "graphs": [
+          "./graphs/sector-flow.yaml",
+          "./graphs/battery-signal.yaml",
+          "./graphs/etf-price.yaml"
+        ],
+        "capabilities": [
+          "proc:bun"
+        ],
+        "connectors": [],
+        "pricing": {
+          "model": "free"
+        },
+        "trust": "official"
+      }
+    },
+    {
+      "name": "release-win-smoke",
+      "source": {
+        "source": "local",
+        "path": "./plugins/release-win-smoke"
+      },
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "ON_USE"
+      },
+      "category": "Productivity",
+      "version": "0.3.9",
+      "description": "Mockable Windows installation and machine-capture smoke graph for release rehearsal.",
+      "artifact": {
+        "sha256": "1aac87611874d93c449dc01ae55ec3de03b1a5d579e54594f05cb4a04bbc5ac2",
+        "bytes": 1518,
+        "key": "release-win-smoke/0.3.9/1aac87611874d93c449dc01ae55ec3de03b1a5d579e54594f05cb4a04bbc5ac2.tgz"
+      },
+      "ai.elanous": {
+        "graphs": [
+          "./graphs/release-win-smoke.yaml"
+        ],
+        "graphManifests": {
+          "release-win-smoke": {
+            "purpose": "Install Elanous on a simulated Windows host, verify eln, and capture the machine once",
+            "allow": {
+              "recipes": [],
+              "skills": [],
+              "domainPacks": []
+            },
+            "hitl": [],
+            "observe": {
+              "categories": [
+                "release.win-smoke"
+              ]
+            }
+          }
+        },
+        "capabilities": [
+          "proc:elanous"
+        ],
+        "authoredTrust": "builtin",
+        "sims": [
+          "./sims/release-win-smoke.yaml"
+        ],
+        "connectors": [],
         "pricing": {
           "model": "free"
         }

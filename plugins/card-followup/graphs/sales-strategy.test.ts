@@ -244,3 +244,25 @@ test('CRM upserts by email or name and company, sorts null last, quotes commas, 
     expect(csv.indexOf('Fifth')).toBeLessThan(csv.indexOf('Third'));
   } finally { rmSync(dir, { recursive: true, force: true }); }
 });
+
+test('a rejected approach field gets a third try that names it, then passes', async () => {
+  const calls: Record<string, unknown>[] = [];
+  let verifies = 0;
+  const reasons = [{ text: 'Director', basis: 'card' }, { text: 'met at event', basis: 'context' }, { text: 'needs workflow', basis: 'offer' }];
+  const result = await buildStrategy({ card, research, context: 'met at event', offer: 'workflow software', ask: async payload => {
+    calls.push(payload);
+    if (payload.task === 'strategy-verify') return ++verifies < 3 ? { ...verified, unsupportedApproach: ['problem'] } : verified;
+    return { fit: { score: 70, label: 'medium', reasons }, approach, nextAction, approachBasis, nextActionBasis };
+  } });
+  const tries = calls.filter(call => call.task === 'strategy');
+  expect(tries).toHaveLength(3);
+  expect(String(tries[2]!.instruction)).toContain('특히 problem');
+  expect(result.approach.problem).toBe('workflow');
+});
+
+test('a rejected approach field on all three tries still fails closed', async () => {
+  const reasons = [{ text: 'Director', basis: 'card' }, { text: 'met at event', basis: 'context' }, { text: 'needs workflow', basis: 'offer' }];
+  await expect(buildStrategy({ card, research, context: 'met at event', offer: 'workflow software', ask: async payload =>
+    payload.task === 'strategy-verify' ? { ...verified, unsupportedApproach: ['problem'] }
+      : { fit: { score: 70, label: 'medium', reasons }, approach, nextAction, approachBasis, nextActionBasis } })).rejects.toThrow('근거 없는 접근 전략/다음 행동: problem');
+});

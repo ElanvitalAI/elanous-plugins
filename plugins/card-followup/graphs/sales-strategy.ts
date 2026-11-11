@@ -50,11 +50,14 @@ export async function buildStrategy({ card, research, context = '', offer = '', 
   let answer: Data = {};
   let reasons: Fit['reasons'] = [];
   let feedback = '';
-  for (let attempt = 0; attempt < 2; attempt++) {
+  // Three tries: with company-site evidence the writer still over-cites about one run in three (10-01 dry runs 0.2.6–0.2.8);
+  // the third try gets the rejected fields by name. The verdict rule itself is unchanged.
+  const LAST = 2;
+  for (let attempt = 0; attempt <= LAST; attempt++) {
     try {
       answer = parseAnswer(await ask({ task: 'strategy', instruction: instruction + feedback, card, research: hasOffer ? { summary: research.summary, news: research.news } : {}, context, offer, evidence: hasOffer ? evidence : [] }));
     } catch (error) {
-      if (attempt === 1) throw error;
+      if (attempt >= 1) throw error;
       feedback = ' 이전 답이 올바른 JSON 객체가 아니었다. 지정한 필드를 갖춘 JSON 객체만 다시 작성하라.';
       continue;
     }
@@ -62,7 +65,7 @@ export async function buildStrategy({ card, research, context = '', offer = '', 
     const actionData = object(answer.nextAction);
     if ((['who', 'problem', 'proposal', 'channel', 'timing'] as const).some(field => !text(approachData[field]))
       || !text(actionData.what) || !text(actionData.due)) {
-      if (attempt === 1) throw new Error('접근 전략 필수 필드 없음');
+      if (attempt >= 1) throw new Error('접근 전략 필수 필드 없음');
       feedback = ' 이전 답에 접근 전략 또는 다음 행동 필수 필드가 빠졌다. 모두 채워 다시 작성하라.';
       continue;
     }
@@ -96,8 +99,15 @@ export async function buildStrategy({ card, research, context = '', offer = '', 
     if (verdict.unsupportedReasons.some(i => !badReasons.has(i as number)) || verdict.unsupportedApproach.length !== badApproach.length || verdict.unsupportedAction.length !== badAction.length) throw new Error('전략 근거 검증 응답을 읽지 못했다');
     reasons = reasons.filter((_, i) => !badReasons.has(i));
     if (!invalidNumber && !invalidClaims && (!hasOffer || (reasons.length >= 3 && new Set(reasons.map(reason => reason.basis)).size >= 3)) && badReasons.size === 0 && badApproach.length === 0 && badAction.length === 0) break;
-    if (attempt === 1 && (badApproach.length || badAction.length || invalidClaims)) throw new Error(`근거 없는 접근 전략/다음 행동: ${[...badApproach, ...badAction].join(', ') || '근거 누락'}`);
-    feedback = ' 이전 답에서 존재하지 않는 S# 또는 근거 내용과 불일치하는 이유·접근 전략·다음 행동을 제외하고, 근거 세 개와 주장별 근거를 다시 작성하라. 고객 약속·확정 일정은 확인된 근거가 없으면 쓰지 말고 내부 제안·목표 기한만 적어라.';
+    // Fit-only shortfalls keep the old two tries (the answer is used with fewer reasons); only rejected approach/action
+    // claims get the third try.
+    if (attempt >= 1 && !(badApproach.length || badAction.length || invalidClaims)) break;
+    if (attempt === LAST && (badApproach.length || badAction.length || invalidClaims)) throw new Error(`근거 없는 접근 전략/다음 행동: ${[...badApproach, ...badAction].join(', ') || '근거 누락'}`);
+    // Name the rejected fields: a site snippet («we build automations») invites a «problem» the page never states
+    // (10-01 dry run, card-followup 0.2.4: strategy failed twice on who/problem once research found the company site).
+    const rejected = [...badApproach, ...badAction];
+    feedback = ' 이전 답에서 존재하지 않는 S# 또는 근거 내용과 불일치하는 이유·접근 전략·다음 행동을 제외하고, 근거 세 개와 주장별 근거를 다시 작성하라. 고객 약속·확정 일정은 확인된 근거가 없으면 쓰지 말고 내부 제안·목표 기한만 적어라.'
+      + (rejected.length ? ` 특히 ${rejected.join(', ')} 는 근거와 맞지 않았다 — 그 필드는 출처가 «직접 말한» 사실만 S# 로 인용하고, 출처가 말하지 않은 회사의 문제·결정권은 «만남 맥락(context)에서 확인할 질문» 꼴로 바꾸거나 basis 를 assumption 으로 적어 추정임을 밝혀라.` : '');
   }
   const fitData = object(answer.fit);
   const score = typeof fitData.score === 'number' && Number.isFinite(fitData.score) && fitData.score >= 0 && fitData.score <= 100 ? fitData.score : null;
