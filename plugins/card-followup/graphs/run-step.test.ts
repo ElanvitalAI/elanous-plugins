@@ -1,4 +1,5 @@
-import { expect, test } from 'bun:test';
+import { expect, spyOn, test } from 'bun:test';
+import { askWithRetry } from './run-step.js';
 import { chmodSync, cpSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { spawnSync } from 'node:child_process';
 import { homedir, tmpdir } from 'node:os';
@@ -49,6 +50,112 @@ const n=fs.readFileSync(counter,'utf8').length;
 process.stdout.write(JSON.stringify({reply:JSON.stringify(drafts[Math.min(n,drafts.length)-1])})+'\\n');
 `);
 }
+
+test('ask retries one socket failure, waits 3 seconds and returns the second answer without logging the card', async () => {
+  const calls: string[][] = [];
+  const waits: number[] = [];
+  const log = spyOn(console, 'error').mockImplementation(() => {});
+  try {
+    const payload = { task: 'draft', card: { name: 'private card name' } };
+    const answer = await askWithRetry(payload, async (_bin, args) => {
+      calls.push(args);
+      if (calls.length === 1) throw new Error('ask 실패: The socket connection was closed unexpectedly');
+      return JSON.stringify({ reply: '{"subject":"ok"}' });
+    }, async ms => { waits.push(ms); });
+    expect(answer).toEqual({ subject: 'ok' });
+    expect(calls).toHaveLength(2);
+    expect(calls[0]).toEqual(['ask', '--json', JSON.stringify(payload)]);
+    expect(calls[1]).toEqual(calls[0]);
+    expect(waits).toEqual([3000]);
+    expect(log).toHaveBeenCalledWith('card-followup: ask retry (socket)');
+    expect(log.mock.calls.flat().join(' ')).not.toContain('private card name');
+  } finally { log.mockRestore(); }
+});
+
+test('ask fails after exactly one retry even when the second socket failure persists', async () => {
+  let calls = 0;
+  const waits: number[] = [];
+  const log = spyOn(console, 'error').mockImplementation(() => {});
+  try {
+    await expect(askWithRetry({}, async () => {
+      calls++;
+      throw new Error('ask 실패: socket connection was closed unexpectedly');
+    }, async ms => { waits.push(ms); })).rejects.toThrow('한 번 다시 했지만 실패');
+    expect(calls).toBe(2);
+    expect(waits).toEqual([3000]);
+    expect(log).toHaveBeenCalledTimes(1);
+  } finally { log.mockRestore(); }
+});
+
+test('ask does not retry non-transient execution failures or JSON parsing failures', async () => {
+  for (const response of [new Error('invalid JSON'), '{invalid JSON']) {
+    let calls = 0;
+    let waits = 0;
+    await expect(askWithRetry({}, async () => {
+      calls++;
+      if (response instanceof Error) throw response;
+      return response;
+    }, async () => { waits++; })).rejects.toThrow();
+    expect(calls).toBe(1);
+    expect(waits).toBe(0);
+  }
+});
+
+test('ask inspects the complete CLI stderr after a truncated exit message', async () => {
+  let calls = 0;
+  const log = spyOn(console, 'error').mockImplementation(() => {});
+  try {
+    expect(await askWithRetry({}, async () => {
+      calls++;
+      if (calls === 1) throw new Error(`ask 실패: ${'x'.repeat(200)}`, { cause: 'stderr: HTTP 503 Service Unavailable' });
+      return JSON.stringify({ reply: '{}' });
+    }, async () => {})).toEqual({});
+    expect(calls).toBe(2);
+    expect(log).toHaveBeenCalledWith('card-followup: ask retry (HTTP503)');
+  } finally { log.mockRestore(); }
+});
+
+test('ask reports a second malformed answer after the one transport retry', async () => {
+  let calls = 0;
+  const log = spyOn(console, 'error').mockImplementation(() => {});
+  try {
+    await expect(askWithRetry({}, async () => {
+      calls++;
+      if (calls === 1) throw new Error('ECONNRESET');
+      return '{invalid JSON';
+    }, async () => {})).rejects.toThrow('한 번 다시 했지만 실패');
+    expect(calls).toBe(2);
+  } finally { log.mockRestore(); }
+});
+
+test('ask succeeds on the first call without waiting', async () => {
+  let calls = 0;
+  let waits = 0;
+  expect(await askWithRetry({}, async () => {
+    calls++;
+    return JSON.stringify({ reply: '{"subject":"ok"}' });
+  }, async () => { waits++; })).toEqual({ subject: 'ok' });
+  expect(calls).toBe(1);
+  expect(waits).toBe(0);
+});
+
+test('only documented transport and HTTP statuses trigger one retry', async () => {
+  for (const message of ['ECONNRESET', 'ETIMEDOUT', 'EPIPE', 'fetch failed', 'HTTP 502', 'HTTP 503', 'HTTP 504', 'HTTP 429']) {
+    let calls = 0;
+    let waits = 0;
+    const log = spyOn(console, 'error').mockImplementation(() => {});
+    try {
+      await askWithRetry({}, async () => {
+        calls++;
+        if (calls === 1) throw new Error(`ask 실패: ${message}`);
+        return JSON.stringify({ reply: '{}' });
+      }, async () => { waits++; });
+      expect(calls, message).toBe(2);
+      expect(waits, message).toBe(1);
+      expect(log).toHaveBeenCalledTimes(1);
+    } finally { log.mockRestore(); }
+  }
+});
 
 test('counterexamples reject bad input and preserve only sourced facts', () => {
   const temp = mkdtempSync(join(tmpdir(), 'card-counter-'));
@@ -173,6 +280,9 @@ test('installed graph completes and writes all three drafts with sources', async
   expect(output.fit).toMatchObject({ score: null, label: 'unknown' });
   expect(output.approach).toMatchObject({ who: '가상 인물', channel: 'email' });
   expect(output.nextAction).toMatchObject({ what: '후속 연락' });
+  expect(report).toContain('- 어떤 문제: 후속 대화');
+  expect(report).toContain('- 어떤 제안: 가상 제품 데모');
+  expect(report).toContain('- 다음 행동: 후속 연락 · 기한: 다음 주');
   expect(output.crm).toBe(join(state.statePath.slice(0, -5), 'crm.csv'));
   expect(readFileSync(output.crm as string, 'utf8')).toContain('person@example.test');
   expect(report).toContain('offer 입력이 없어 맞음을 판정하지 않았다');
@@ -194,6 +304,22 @@ test('installed graph completes and writes all three drafts with sources', async
   expect(codexCall.endsWith(`-i ${image}`)).toBe(true);
   expect(readFileSync(join(bin, 'elanous.calls'), 'utf8')).toContain('--limit 5 가상 회사');
   expect(readFileSync(join(bin, 'elanous.calls'), 'utf8')).toContain('--limit 5 가상 인물 가상 회사');
+  const crm = output.crm as string;
+  const withOffer = await runGraph(join(installed, 'graphs/card-followup.yaml'), {
+    input: { image, context: contextLine, sender: '가상 발신자', offer: '가상 회사 대상 제품 데모', crm },
+    deps: { root: join(temp, 'offer-state'), runBash: async (command, opts) => {
+      const response = spawnSync('/bin/bash', ['-c', command], { cwd: elsewhere, encoding: 'utf8', env: { ...opts.env, PATH: `${bin}:${process.env.PATH}`, CARD_FOLLOWUP_CODEX_BIN: join(bin, 'codex'), CARD_FOLLOWUP_ELANOUS_BIN: join(bin, 'elanous') } });
+      return { stdout: response.stdout, stderr: response.stderr, exitCode: response.status ?? 1 };
+    } },
+  });
+  expect(withOffer.status).toBe('done');
+  const offered = JSON.parse(readFileSync(join(withOffer.statePath.slice(0, -5), 'followup.json'), 'utf8')) as Data;
+  expect(offered.fit).toMatchObject({ score: 85, label: 'high' });
+  expect(offered.crm).toBe(crm);
+  expect(offered.sent).toBe(false);
+  const rows = readFileSync(crm, 'utf8').trim().split('\n');
+  expect(rows).toHaveLength(2);
+  expect(rows[1]).toContain(',85,high,');
   rmSync(join(bin, 'elanous.count'), { force: true });
   fakeElanous(join(bin, 'elanous'), [{ subject: '팔로업', body: '가상 회사는 세계 최대 기업입니다.', linkedin: '초대', question: '질문' }]);
   const rejected = await runGraph(join(installed, 'graphs/card-followup.yaml'), {
@@ -222,7 +348,10 @@ test('strategy uses offer and a custom local CRM path; drafts receive the chosen
     expect(strategy.output.outcome).toBe('ok');
     expect(strategy.output.fit).toMatchObject({ score: 85, label: 'high', reasons: [{ basis: 'offer' }, { basis: 'S1' }, { basis: 'card' }] });
     expect(strategy.output.crm).toBe(crm);
+    expect(strategy.output.crmRow).toMatchObject({ fit_score: '85', fit_label: 'high', interest: '후속 대화', next_action: '후속 연락' });
     expect(readFileSync(crm, 'utf8')).toContain('person@example.test');
+    const relativeCrm = step('strategy', { context: contextLine, crm: 'contacts.csv' }, { 'read-card': card, research }, env);
+    expect(relativeCrm.output).toMatchObject({ outcome: 'fail', reason: 'crm: 절대 경로 필요' });
     const draft = step('draft', { context: contextLine }, { 'read-card': card, research, strategy: strategy.output }, env);
     expect(draft.output.outcome).toBe('ok');
     const calls = readFileSync(`${fake}.calls`, 'utf8');
@@ -230,8 +359,32 @@ test('strategy uses offer and a custom local CRM path; drafts receive the chosen
     expect(calls).toContain('"proposal":"가상 제품 데모"');
     expect(calls).toContain('"channel":"email"');
     expect(calls).not.toContain('--test');
+    // The approach is guidance, not an exemption from the sentence-level source verifier.
+    const unsupported = join(temp, 'unsupported-approach');
+    fakeElanous(unsupported, [{ subject: '데모 제안', body: `${contextLine} 귀사는 세계 최대 기업입니다. ${'후속 대화를 제안드립니다. '.repeat(6)}`, linkedin: '초대', question: '질문' }]);
+    const rejected = step('draft', { context: contextLine }, { 'read-card': card, research, strategy: strategy.output }, { CARD_FOLLOWUP_ELANOUS_BIN: unsupported });
+    expect(rejected.output).toMatchObject({ outcome: 'fail' });
+    expect(rejected.output.reason).toContain('출처 없는 회사 사실');
+    expect(readFileSync(`${unsupported}.count`, 'utf8')).toBe('xxx');
+    rmSync(rejected.temp, { recursive: true, force: true });
     rmSync(strategy.temp, { recursive: true, force: true });
+    rmSync(relativeCrm.temp, { recursive: true, force: true });
     rmSync(draft.temp, { recursive: true, force: true });
+  } finally { rmSync(temp, { recursive: true, force: true }); }
+});
+
+test('report refuses missing strategy fields instead of writing an incomplete plan', () => {
+  const temp = mkdtempSync(join(tmpdir(), 'card-missing-strategy-'));
+  try {
+    const input = { outDir: temp };
+    const outputs = { 'read-card': { card: { name: '가상 인물' } }, research: { sources: [] },
+      strategy: { fit: { score: null, label: 'unknown', reasons: [] }, crm: join(temp, 'crm.csv'), crmRow: { fit_label: 'unknown' },
+        approach: { who: '가상 인물', problem: '후속 대화', proposal: '데모', channel: 'email' }, nextAction: { what: '메일 작성', due: '내일' } },
+      draft: { subject: '제목', linkedin: '초대', question: '질문' } };
+    const result = step('report', input, outputs, {});
+    expect(result.output).toMatchObject({ outcome: 'fail', reason: '전략 없음' });
+    expect(() => readFileSync(join(temp, 'followup.md'), 'utf8')).toThrow();
+    rmSync(result.temp, { recursive: true, force: true });
   } finally { rmSync(temp, { recursive: true, force: true }); }
 });
 
@@ -283,6 +436,39 @@ test('sources keep only the card company or site — no same-name strangers, no 
   expect((result.output.sources as { url: string }[]).map(s => s.url)).toEqual(['https://acme.example/', 'https://acme.example/pricing']);
   expect(result.output.news).toEqual(['Acme Cloud pricing']);
   expect(result.output.dropped).toBe(6);
+  rmSync(result.temp, { recursive: true, force: true });
+  rmSync(temp, { recursive: true, force: true });
+});
+
+test('research also searches the card site — the company name alone ranks other companies above it', () => {
+  const temp = mkdtempSync(join(tmpdir(), 'card-site-query-'));
+  const fake = join(temp, 'elanous');
+  fakeElanous(fake, [], '- [Elanvital AI](https://elanvital.ai/)');
+  const withSite = step('research', {}, { 'read-card': { card: { name: 'Joosung Jin', company: 'Elanvital AI', url: 'https://www.elanvital.ai/', language: 'en' } } }, { CARD_FOLLOWUP_ELANOUS_BIN: fake });
+  const calls = readFileSync(`${fake}.calls`, 'utf8').trim().split('\n').filter(l => l.startsWith('research'));
+  // queries run in parallel, so the call order is not fixed
+  expect(calls.sort()).toEqual(['research --json --limit 5 Elanvital AI', 'research --json --limit 5 Joosung Jin Elanvital AI', 'research --json --limit 5 elanvital.ai'].sort());
+  rmSync(`${fake}.calls`, { force: true });
+  const noSite = step('research', {}, { 'read-card': { card: { name: 'Joosung Jin', company: 'Elanvital AI', language: 'en' } } }, { CARD_FOLLOWUP_ELANOUS_BIN: fake });
+  expect(readFileSync(`${fake}.calls`, 'utf8').trim().split('\n').filter(l => l.startsWith('research')).sort()).toEqual(['research --json --limit 5 Elanvital AI', 'research --json --limit 5 Joosung Jin Elanvital AI']);
+  for (const r of [withSite, noSite]) rmSync(r.temp, { recursive: true, force: true });
+  rmSync(temp, { recursive: true, force: true });
+});
+
+test('an English card translates a Korean meeting note instead of pasting it into the mail', () => {
+  const temp = mkdtempSync(join(tmpdir(), 'card-cross-language-'));
+  const contextLine = '마케터의 밤에서 인사';
+  const english = 'Great to meet you at Marketers Night. I would love to show a short demo that takes one request from a single line to a finished result, if useful.';
+  const fake = join(temp, 'elanous');
+  fakeElanous(fake, [
+    { subject: 'Follow-up', body: `Hi, ${contextLine}. ${english}`, linkedin: 'Nice to meet you.', question: 'What should we try first?' },
+    { subject: 'Follow-up', body: english, linkedin: 'Nice to meet you at Marketers Night.', question: 'What should we try first?' },
+  ]);
+  const card = { card: { name: 'Fictional Person', company: 'Fictional Co', email: null, language: 'en' } };
+  const result = step('draft', { context: contextLine }, { 'read-card': card, research: { sources: [] } }, { CARD_FOLLOWUP_ELANOUS_BIN: fake });
+  expect(result.output.outcome).toBe('ok');
+  expect(String(result.output.body)).toBe(english);
+  expect(/[가-힣]/.test(String(result.output.body))).toBe(false);
   rmSync(result.temp, { recursive: true, force: true });
   rmSync(temp, { recursive: true, force: true });
 });

@@ -88,5 +88,45 @@
     "name": "image-first-shorts",
     "version": "0.1.0",
     "sha256": "35b49c13e69d42c0ac68e97546971f0907133d543bb3fe73c10b83b1bc453146"
+  },
+  {
+    "name": "absorb",
+    "version": "0.3.9",
+    "sha256": "ccc3c82b7cea47e90852c314baf5adfc8987a5050a176fbbf6d0f4c6ee50b676"
+  },
+  {
+    "name": "architecture-deliverables",
+    "version": "0.1.0",
+    "sha256": "c1ad7e4845bb3186d14e37d4d5a22f75056f9a8904811d94adc8095a211c4d5a"
+  },
+  {
+    "name": "card-followup",
+    "version": "0.2.9",
+    "sha256": "cc7847420842984ffb4f5b0954519fbc78c50d7407d666aa1d01bbc173649671"
+  },
+  {
+    "name": "demo-brief-to-requirements",
+    "version": "0.1.0",
+    "sha256": "1d9e945e4b65c61a4cc933135410b18c9415a2fd49b48d0bc8bb810e91613ffd"
+  },
+  {
+    "name": "doc-draft",
+    "version": "0.1.1",
+    "sha256": "06e0ae481c9f673571cbdc1026ae438c673e9de67fa408f34aa41a840d3bac09"
+  },
+  {
+    "name": "gcp-architect-expand",
+    "version": "0.1.0",
+    "sha256": "1d75b11f785864bac029883276552e62b2426856ccbdccfe27cd770664b1813a"
+  },
+  {
+    "name": "kr-flow-composites",
+    "version": "0.1.0",
+    "sha256": "2c462ae8209226b3967ae3ef2a06b893146d3c72801b5f3fa7302016461ce7e7"
+  },
+  {
+    "name": "release-win-smoke",
+    "version": "0.3.9",
+    "sha256": "1aac87611874d93c449dc01ae55ec3de03b1a5d579e54594f05cb4a04bbc5ac2"
   }
 ]
